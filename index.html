@@ -123,21 +123,34 @@
       <label>運用利回り（年）<b><span id="rVal"></span>%</b></label>
       <input type="range" id="rate" min="0" max="8" step="0.1">
     </div>
+    <p class="lbl" style="margin:18px 0 2px">① 現役</p>
     <div class="slider">
-      <label>年間の貯蓄（リタイアまで）<b><span id="sVal"></span> 万円</b></label>
+      <label>年間の貯蓄（サイドFIREまで）<b><span id="sVal"></span> 万円</b></label>
       <input type="range" id="save" min="0" max="500" step="10">
     </div>
+    <p class="lbl" style="margin:18px 0 2px">② サイドFIRE（バイト・パートで稼ぐ）</p>
     <div class="grid2">
       <div class="slider">
-        <label>リタイア年<b><span id="retVal"></span></b></label>
-        <input type="range" id="ret" min="2035" max="2065" step="1">
+        <label>サイドFIRE開始年<b><span id="sfVal"></span></b></label>
+        <input type="range" id="sfire" min="2026" max="2060" step="1">
       </div>
       <div class="slider">
-        <label>リタイア後の取り崩し/年<b><span id="dVal"></span> 万円</b></label>
+        <label>年間収支（副業−生活費）<b><span id="sfnVal"></span> 万円</b></label>
+        <input type="range" id="sfnet" min="-300" max="300" step="10">
+      </div>
+    </div>
+    <p class="lbl" style="margin:18px 0 2px">③ 完全リタイア</p>
+    <div class="grid2">
+      <div class="slider">
+        <label>完全リタイア年<b><span id="retVal"></span></b></label>
+        <input type="range" id="ret" min="2035" max="2075" step="1">
+      </div>
+      <div class="slider">
+        <label>取り崩し/年<b><span id="dVal"></span> 万円</b></label>
         <input type="range" id="draw" min="0" max="400" step="10">
       </div>
     </div>
-    <p class="note">スライダーで「あなたのシミュ（緑）」が即変化。実録を入れた年は確定して、そこから先が追従するよ。</p>
+    <p class="note">3段階でシミュできるよ：①現役でためる → ②サイドFIRE（バイト等でゆるく稼ぐ、年間収支は±どちらもOK）→ ③完全リタイアで取り崩し。スライダーで緑線が即変化。実録を入れた年は確定して、そこから先が追従するよ。</p>
   </div>
 
   <!-- 実録 -->
@@ -172,7 +185,7 @@ const DEFAULTS={
     {name:"外貨建て保険",val:0, color:"#fb7185"},
     {name:"その他",    val:0, color:"#5b6472"},
   ],
-  rate:3.0, save:250, ret:2053, draw:130,
+  rate:3.0, save:250, sfire:2040, sfnet:0, ret:2053, draw:130,
   actuals:{}
 };
 const FP={2025:3366,2026:3758,2027:4079,2028:4245,2029:4061,2030:4274,2031:4373,2032:4129,2033:4177,2034:4007,2035:3825,2036:3470,2037:3228,2038:3276,2039:3320,2040:3559,2041:3932,2042:4316,2043:4712,2044:5143,2045:5468,2046:5922,2047:5782,2048:7286,2049:7522,2050:7621,2051:7875,2052:8214,2053:9444,2054:9516,2055:9602,2056:9691,2057:9782,2058:9876,2059:9972,2060:10070,2061:10172,2062:10321,2063:10477,2064:10640,2065:10629,2066:10801,2067:10977,2068:11158,2069:11375,2070:11597,2071:11825,2072:12059,2073:12299,2074:12545,2075:12798,2076:13058,2077:13325,2078:13600,2079:13912,2080:14230,2081:14553,2082:14882,2083:15217,2084:15558,2085:15906,2086:16260,2087:16621,2088:16988,2089:17362,2090:17744,2091:18132,2092:18528};
@@ -188,7 +201,7 @@ const LS_KEY="poko_lifeplan_v1";
   else if(cur!==j && confirm("このリンクの数字で上書きする？（今スマホに入っている数字は消えます）")){ localStorage.setItem(LS_KEY,j); }
   }catch(e){} } })();
 let S=load();
-function load(){try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.assets)return s;}catch(e){}return JSON.parse(JSON.stringify(DEFAULTS));}
+function load(){try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.assets)return Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),s);}catch(e){}return JSON.parse(JSON.stringify(DEFAULTS));}
 function save(){localStorage.setItem(LS_KEY,JSON.stringify(S));}
 function totalNow(){return S.assets.reduce((a,b)=>a+(+b.val||0),0);}
 function val(nm){const a=S.assets.find(x=>x.name===nm);return a?(+a.val||0):0;}
@@ -196,12 +209,17 @@ function fmt(n){return Math.round(n).toLocaleString();}
 function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(x||1)));const n=x/p;const m=n<1.5?1:n<3?2:n<7?5:10;return m*p;}
 
 function simSeries(){
+  // 3段階：現役(貯蓄)→サイドFIRE(副業-生活費の年間収支)→完全リタイア(取り崩し)
   const r=S.rate/100, out={}; let prev=null;
+  const sfire=+S.sfire||START_YEAR, ret=Math.max(sfire,+S.ret||sfire);
   for(let y=START_YEAR;y<=END_YEAR;y++){
     const act=S.actuals[y];
     if(act!=null&&act!==""){out[y]=+act;prev=+act;continue;}
     if(prev===null){out[y]=totalNow();prev=out[y];continue;}
-    let v=prev*(1+r); v+= (y<=S.ret)?(+S.save||0):-(+S.draw||0);
+    let v=prev*(1+r);
+    if(y<=sfire) v+=(+S.save||0);          // 現役：貯蓄
+    else if(y<=ret) v+=(+S.sfnet||0);      // サイドFIRE：年間収支（副業−生活費、±）
+    else v-=(+S.draw||0);                   // 完全リタイア：取り崩し
     out[y]=Math.max(0,Math.round(v));prev=out[y];
   }
   return out;
@@ -267,7 +285,7 @@ function renderTable(){
   }));
 }
 function bindSliders(){
-  [["rate","rVal",1],["save","sVal",0],["ret","retVal",0],["draw","dVal",0]].forEach(([id,lab,dec])=>{
+  [["rate","rVal",1],["save","sVal",0],["sfire","sfVal",0],["sfnet","sfnVal",0],["ret","retVal",0],["draw","dVal",0]].forEach(([id,lab,dec])=>{
     const el=document.getElementById(id);el.value=S[id];document.getElementById(lab).textContent=(+S[id]).toFixed(dec);
     el.addEventListener("input",e=>{S[id]=+e.target.value;document.getElementById(lab).textContent=(+S[id]).toFixed(dec);save();renderChart();});
   });
