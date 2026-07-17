@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Life Plan — ぽこ</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#0d1016; --bg2:#11151d; --card:#161b24; --card2:#1b212c;
@@ -78,13 +79,36 @@
   .btn.accent:hover{filter:brightness(1.06)}
   .note{font-size:11px;color:var(--faint);line-height:1.7;margin-top:10px}
   .foot{font-size:10.5px;color:var(--faint);text-align:center;margin-top:8px}
+  /* ログイン画面 */
+  #gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:radial-gradient(1000px 500px at 70% 0%,rgba(53,224,177,.12),transparent 60%),var(--bg)}
+  #gate .box{width:100%;max-width:360px;text-align:center}
+  #gate h2{font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:.04em}
+  #gate p{font-size:13px;color:var(--sub);margin:0 0 22px;line-height:1.7}
+  #gate input{width:100%;height:48px;border:1px solid var(--line);border-radius:12px;background:#0e131b;color:var(--ink);
+    font-size:16px;font-family:inherit;padding:0 14px;margin-bottom:12px;text-align:center}
+  #gate input:focus{outline:none;border-color:var(--mint)}
+  #gate .msg{font-size:12.5px;min-height:18px;margin-top:14px;color:var(--mint)}
+  #gate .logo{font-size:13px;letter-spacing:.14em;color:var(--faint);margin-bottom:26px;font-weight:600}
+  #app{display:none}
+  .acct{display:flex;align-items:center;gap:10px}
+  .acct .out{font-size:11px;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="gate"><div class="box">
+  <div class="logo">LIFE&nbsp;PLAN</div>
+  <h2>ログイン</h2>
+  <p>メールにログイン用リンクを送るよ。<br>あなただけの非公開ページ・PCでもスマホでも同じ数字。</p>
+  <input id="email" type="email" inputmode="email" placeholder="メールアドレス" autocomplete="email">
+  <button class="btn accent" id="loginBtn" style="width:100%;height:48px">ログインリンクを送る</button>
+  <div class="msg" id="gateMsg"></div>
+</div></div>
+
+<div class="wrap" id="app">
   <div class="top">
     <h1>LIFE&nbsp;PLAN <span class="thin">/ ぽこ</span></h1>
-    <span class="safe">◎ この端末の中だけ・オフライン</span>
+    <span class="acct"><span class="out" id="logoutBtn">ログアウト</span></span>
   </div>
 
   <!-- 現在地 -->
@@ -202,7 +226,9 @@ const LS_KEY="poko_lifeplan_v1";
   }catch(e){} } })();
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.assets)return Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),s);}catch(e){}return JSON.parse(JSON.stringify(DEFAULTS));}
-function save(){localStorage.setItem(LS_KEY,JSON.stringify(S));}
+let _cloudTimer=null;
+function save(){localStorage.setItem(LS_KEY,JSON.stringify(S)); if(typeof SESSION!=="undefined"&&SESSION){clearTimeout(_cloudTimer);_cloudTimer=setTimeout(pushCloud,800);}}
+async function pushCloud(){ if(!SESSION)return; try{ await sb.from("lifeplan").upsert({user_id:SESSION.user.id,data:S,updated_at:new Date().toISOString()}); }catch(e){} }
 function totalNow(){return S.assets.reduce((a,b)=>a+(+b.val||0),0);}
 function val(nm){const a=S.assets.find(x=>x.name===nm);return a?(+a.val||0):0;}
 function fmt(n){return Math.round(n).toLocaleString();}
@@ -298,7 +324,40 @@ document.getElementById("linkBtn").addEventListener("click",()=>{
   if(navigator.clipboard){navigator.clipboard.writeText(link).then(()=>{const b=document.getElementById("linkBtn");b.textContent="コピーしたよ ✓";setTimeout(()=>b.textContent="別の端末へ（リンク）",1500);});}
   prompt("このリンクを別の端末（スマホ等）で開くと、この内容が移ります。コピーして送ってね：",link);
 });
-renderAll();
+
+/* ===== ログイン（Supabase・メールでリンク認証／端末をまたいで同期・自分だけ） ===== */
+const SB_URL="https://yqrghwthhdeqrnkbgmxn.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlxcmdod3RoaGRlcXJua2JnbXhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NzYxMDEsImV4cCI6MjA5MjU1MjEwMX0.8BDrtHAoRhUlMnJlJqO_Rfica0cDjaqn-Ms2snncCjc";
+let SESSION=null;
+const sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const gate=document.getElementById("gate"), appEl=document.getElementById("app");
+function showApp(){gate.style.display="none";appEl.style.display="block";}
+function showGate(){gate.style.display="flex";appEl.style.display="none";}
+document.getElementById("loginBtn").addEventListener("click",async()=>{
+  const email=document.getElementById("email").value.trim(), msg=document.getElementById("gateMsg");
+  if(!/.+@.+\..+/.test(email)){msg.textContent="メールアドレスを入れてね";return;}
+  msg.textContent="送信中…";
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  msg.textContent=error?("うまくいかなかった: "+error.message):"メール送ったよ📩 届いたリンクを開いてね（迷惑メールも見てね）";
+});
+document.getElementById("email").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("loginBtn").click();});
+document.getElementById("logoutBtn").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
+async function loadFromCloud(){
+  try{
+    const {data}=await sb.from("lifeplan").select("data").eq("user_id",SESSION.user.id).maybeSingle();
+    if(data&&data.data&&data.data.assets){ S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),data.data); localStorage.setItem(LS_KEY,JSON.stringify(S)); }
+    else if(S&&S.assets&&totalNow()>0){ await pushCloud(); } // 初回：今ある内容（リンクで入れた等）をクラウドへ
+  }catch(e){}
+  renderAll();
+}
+(async function initAuth(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){SESSION=session;showApp();await loadFromCloud();} else {showGate();}
+  sb.auth.onAuthStateChange(async(ev,sess)=>{
+    if(sess&&!SESSION){SESSION=sess;showApp();await loadFromCloud();}
+    else if(!sess){SESSION=null;showGate();}
+  });
+})();
 </script>
 </body>
 </html>
