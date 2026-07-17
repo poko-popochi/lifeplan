@@ -152,7 +152,7 @@
       </div>
       <div class="slider">
         <label>生活費（年）<b><span id="livVal"></span> 万円</b></label>
-        <input type="range" id="living" min="100" max="500" step="5">
+        <input type="range" id="living" min="100" max="1200" step="10">
       </div>
     </div>
     <p class="lbl" style="margin:16px 0 2px">① 現役</p>
@@ -167,8 +167,8 @@
         <input type="range" id="sfire" min="2026" max="2060" step="1">
       </div>
       <div class="slider">
-        <label>副業収入（年）<b><span id="sfiVal"></span> 万円</b></label>
-        <input type="range" id="sfincome" min="0" max="500" step="10">
+        <label>サイドFIRE中の年間収入<b><span id="sfiVal"></span> 万円</b></label>
+        <input type="range" id="sfincome" min="0" max="1000" step="10">
       </div>
     </div>
     <p class="note" id="sfNote" style="margin-top:4px"></p>
@@ -180,7 +180,7 @@
       </div>
       <div class="slider">
         <label>年金など収入（年）<b><span id="penVal"></span> 万円</b></label>
-        <input type="range" id="pension" min="0" max="500" step="5">
+        <input type="range" id="pension" min="0" max="800" step="10">
       </div>
     </div>
     <p class="note" id="retNote" style="margin-top:4px"></p>
@@ -207,7 +207,17 @@
         <button class="btn accent" id="saveBtn">保存 ✓</button>
       </div>
     </div>
-    <p class="foot">自動保存（この端末のブラウザ内だけ）。ネットには一切送信していません。<br>「別の端末へ」でリンクを作れば、スマホ↔PCにデータを移せるよ（リンクの中身はサーバーを通りません）。</p>
+    <p class="foot">自動保存（ログイン中はクラウドにも同期＝PC↔スマホで同じ数字・自分だけ）。CSVはブラウザ内で読むだけ。</p>
+  </div>
+
+  <!-- 詳細 -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="lbl">Details · くわしく（CSVから）</p>
+    <p class="lbl" style="color:var(--sub);margin:6px 0 8px">アセット推移</p>
+    <canvas id="assetChart" width="700" height="250" style="width:100%;height:auto"></canvas>
+    <div class="chartlegend" id="assetLegend"></div>
+    <p class="lbl" style="color:var(--sub);margin:24px 0 10px">収支の内訳（年別）</p>
+    <div id="expBox"></div>
   </div>
 </div>
 
@@ -224,7 +234,7 @@ const DEFAULTS={
     {name:"その他",    val:0, color:"#5b6472"},
   ],
   rate:3.0, living:265, save:250, sfire:2040, sfincome:200, ret:2053, pension:315,
-  actuals:{}, savings:{}
+  actuals:{}, savings:{}, assetHist:{}, expHist:{}
 };
 const FP={2025:3366,2026:3758,2027:4079,2028:4245,2029:4061,2030:4274,2031:4373,2032:4129,2033:4177,2034:4007,2035:3825,2036:3470,2037:3228,2038:3276,2039:3320,2040:3559,2041:3932,2042:4316,2043:4712,2044:5143,2045:5468,2046:5922,2047:5782,2048:7286,2049:7522,2050:7621,2051:7875,2052:8214,2053:9444,2054:9516,2055:9602,2056:9691,2057:9782,2058:9876,2059:9972,2060:10070,2061:10172,2062:10321,2063:10477,2064:10640,2065:10629,2066:10801,2067:10977,2068:11158,2069:11375,2070:11597,2071:11825,2072:12059,2073:12299,2074:12545,2075:12798,2076:13058,2077:13325,2078:13600,2079:13912,2080:14230,2081:14553,2082:14882,2083:15217,2084:15558,2085:15906,2086:16260,2087:16621,2088:16988,2089:17362,2090:17744,2091:18132,2092:18528};
 
@@ -346,7 +356,42 @@ function updateNotes(){
   if(sn) sn.innerHTML="→ この間の年間収支："+fmtN(sfNet)+"（副業"+(+S.sfincome||0)+" − 生活費"+living+"）";
   if(rn) rn.innerHTML="→ この間の年間収支："+fmtN(rNet)+"（年金など"+(+S.pension||0)+" − 生活費"+living+"）";
 }
-function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();}
+function renderDetail(){
+  const dc=document.getElementById("detailCard"); if(!dc)return;
+  const ah=S.assetHist||{}, eh=S.expHist||{};
+  const ahY=Object.keys(ah).filter(y=>{const o=ah[y]||{};return (o.預金+o.株式+o.投信+o.年金+o.ポイント)>=100;}).sort();
+  const ehY=Object.keys(eh).sort();
+  if(!ahY.length&&!ehY.length){dc.style.display="none";return;}
+  dc.style.display="block";
+  const CLS=[["預金","#35e0b1"],["投信","#5aa9f0"],["株式","#f6c451"],["年金","#a78bfa"],["ポイント","#fb7185"]];
+  const cv=document.getElementById("assetChart"),c=cv.getContext("2d"),W=cv.width,H=cv.height,PL=46,PR=12,PT=12,PB=22;
+  c.clearRect(0,0,W,H);
+  if(ahY.length){
+    const y0=+ahY[0], y1=+ahY[ahY.length-1];
+    let max=0;ahY.forEach(y=>{const o=ah[y];max=Math.max(max,(o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0));});max=Math.ceil(max/1000)*1000||1000;
+    const X=y=>PL+((y1===y0)?0.5:(y-y0)/(y1-y0))*(W-PL-PR), Yv=v=>H-PB-(v/max)*(H-PT-PB);
+    c.strokeStyle="#1e2530";c.fillStyle="#5b6472";c.font="10px sans-serif";c.textAlign="right";
+    const step=niceStep(max/4);for(let g=0;g<=max+1;g+=step){const yy=Yv(g);c.beginPath();c.moveTo(PL,yy);c.lineTo(W-PR,yy);c.stroke();const o=g/10000;c.fillText((o%1?o.toFixed(1):o)+"億",PL-5,yy+3);}
+    c.textAlign="center";ahY.forEach(y=>c.fillText(y,X(+y),H-6));
+    const cum={};ahY.forEach(y=>cum[y]=0);
+    CLS.forEach(([name,color])=>{
+      c.fillStyle=color+"cc";c.beginPath();
+      ahY.forEach((y,i)=>{const v=cum[y]+(ah[y][name]||0);const px=X(+y),py=Yv(v);if(i===0)c.moveTo(px,py);else c.lineTo(px,py);});
+      for(let i=ahY.length-1;i>=0;i--){const y=ahY[i];c.lineTo(X(+y),Yv(cum[y]));}
+      c.closePath();c.fill();
+      ahY.forEach(y=>cum[y]+=(ah[y][name]||0));
+    });
+    document.getElementById("assetLegend").innerHTML=CLS.map(([n,col])=>'<span><i class="ln" style="background:'+col+'"></i>'+n+'</span>').join("");
+  }
+  const eb=document.getElementById("expBox");
+  eb.innerHTML=ehY.slice().reverse().map(y=>{
+    const o=eh[y],inc=o.収入||0,exp=o.支出||0,sav=inc-exp;
+    const cats=Object.entries(o.内訳||{}).sort((a,b)=>b[1]-a[1]).slice(0,8), cmax=cats.length?cats[0][1]:1;
+    const bars=cats.map(([k,v])=>'<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin:3px 0"><span style="width:92px;color:var(--sub)">'+k+'</span><span style="flex:1;height:8px;background:#232a35;border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:'+(v/cmax*100).toFixed(0)+'%;background:#5aa9f0"></span></span><span class="num" style="width:50px;text-align:right;color:var(--sub)">'+v+'万</span></div>').join("");
+    return '<div style="margin-bottom:20px"><div class="row" style="margin-bottom:8px"><b style="font-size:15px">'+y+'</b><span class="sub">収入 <b style="color:var(--ink)">'+inc+'</b>／支出 <b style="color:var(--ink)">'+exp+'</b>／貯蓄 <b style="color:'+(sav>=0?"#35e0b1":"#ff7a66")+'">'+(sav>=0?"+":"")+sav+'万</b></span></div>'+bars+'</div>';
+  }).join("");
+}
+function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();}
 
 /* ===== CSV読み込み（マネフォ：資産推移→実録／家計簿→年間貯蓄。ブラウザ内で処理・送信なし） ===== */
 function decodeCSV(buf){ let t=new TextDecoder("utf-8").decode(buf).replace(/^﻿/,""); if(t.indexOf("日付")<0&&t.indexOf("計算対象")<0){try{t=new TextDecoder("shift-jis").decode(buf);}catch(e){}} return t; }
@@ -363,14 +408,20 @@ function importRows(rows){
   if(!rows.length)return{type:null};
   const h=rows[0].map(c=>c.replace(/^﻿/,"").trim());
   const has=n=>h.some(c=>c.indexOf(n)>=0), idx=n=>h.findIndex(c=>c.indexOf(n)>=0);
-  if(has("合計")&&has("日付")){ const iD=idx("日付"),iT=idx("合計"),seen={};
-    for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iT)continue;const y=(R[iD]||"").split("/")[0];const v=parseInt(String(R[iT]).replace(/[,"]/g,""),10);if(!y||isNaN(v))continue;if(!(y in seen))seen[y]=v;}
+  if(!S.assetHist)S.assetHist={}; if(!S.expHist)S.expHist={}; if(!S.savings)S.savings={};
+  if(has("合計")&&has("日付")){ const iD=idx("日付"),iT=idx("合計"),iYo=idx("預金"),iKa=idx("株式"),iTo=idx("投資信託"),iNe=idx("年金"),iPo=idx("ポイント"),seen={};
+    const g=(R,i)=>i>=0?Math.round((parseInt(String(R[i]).replace(/[,"]/g,""),10)||0)/10000):0;
+    for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iT)continue;const y=(R[iD]||"").split("/")[0];const v=parseInt(String(R[iT]).replace(/[,"]/g,""),10);if(!y||isNaN(v))continue;
+      if(!(y in seen)){seen[y]=v; S.assetHist[y]={"預金":g(R,iYo),"株式":g(R,iKa),"投信":g(R,iTo),"年金":g(R,iNe),"ポイント":g(R,iPo)};}}
     let n=0;for(const y in seen){if(y!=="2026"){S.actuals[y]=Math.round(seen[y]/10000);n++;}} return {type:"資産推移",n}; }
   if(has("計算対象")&&has("金額")&&has("大項目")){ const iTgt=idx("計算対象"),iAmt=idx("金額"),iMaj=idx("大項目"),iTr=idx("振替"),iD=idx("日付"),EX={"現金・カード":1,"未分類":1};
-    let inc=0,exp=0,year="";
+    let inc=0,exp=0,year="",cat={};
     for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iMaj)continue;if(String(R[iTgt]).trim()!=="1")continue;if(iTr>=0&&String(R[iTr]).trim()==="1")continue;if(EX[R[iMaj]])continue;
-      const a=parseInt(String(R[iAmt]).replace(/[,"]/g,""),10);if(isNaN(a))continue;if(!year)year=(R[iD]||"").split("/")[0];if(a>=0)inc+=a;else exp+=a;}
-    if(year){if(!S.savings)S.savings={};S.savings[year]=Math.round((inc+exp)/10000);return {type:"家計簿",year};} }
+      const a=parseInt(String(R[iAmt]).replace(/[,"]/g,""),10);if(isNaN(a))continue;if(!year)year=(R[iD]||"").split("/")[0];
+      if(a>=0)inc+=a;else{exp+=a;cat[R[iMaj]]=(cat[R[iMaj]]||0)+(-a);}}
+    if(year){S.savings[year]=Math.round((inc+exp)/10000);
+      const cm={};for(const k in cat)cm[k]=Math.round(cat[k]/10000);
+      S.expHist[year]={"収入":Math.round(inc/10000),"支出":Math.round(-exp/10000),"内訳":cm}; return {type:"家計簿",year};} }
   return {type:null};
 }
 function renderSavings(){ const box=document.getElementById("savingsBox");if(!box)return;const sv=S.savings||{},ys=Object.keys(sv).sort();
