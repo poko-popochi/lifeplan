@@ -178,8 +178,15 @@ const DEFAULTS={
 const FP={2025:3366,2026:3758,2027:4079,2028:4245,2029:4061,2030:4274,2031:4373,2032:4129,2033:4177,2034:4007,2035:3825,2036:3470,2037:3228,2038:3276,2039:3320,2040:3559,2041:3932,2042:4316,2043:4712,2044:5143,2045:5468,2046:5922,2047:5782,2048:7286,2049:7522,2050:7621,2051:7875,2052:8214,2053:9444,2054:9516,2055:9602,2056:9691,2057:9782,2058:9876,2059:9972,2060:10070,2061:10172,2062:10321,2063:10477,2064:10640,2065:10629,2066:10801,2067:10977,2068:11158,2069:11375,2070:11597,2071:11825,2072:12059,2073:12299,2074:12545,2075:12798,2076:13058,2077:13325,2078:13600,2079:13912,2080:14230,2081:14553,2082:14882,2083:15217,2084:15558,2085:15906,2086:16260,2087:16621,2088:16988,2089:17362,2090:17744,2091:18132,2092:18528};
 
 const LS_KEY="poko_lifeplan_v1";
-/* 共有リンク(#d=base64)で開かれたら、その端末のlocalStorageに取り込む。#以降はサーバーに送信されない */
-(function(){ const h=location.hash||""; if(h.indexOf("#d=")===0){ try{ const j=decodeURIComponent(escape(atob(h.slice(3)))); JSON.parse(j); localStorage.setItem(LS_KEY,j); }catch(e){} history.replaceState(null,"",location.pathname+location.search); } })();
+/* 共有リンク(#d=base64)で開かれたら、その端末のlocalStorageに取り込む。#以降はサーバーに送信されない。
+   ・保存データが無ければ黙って取り込む（＝ホーム画面アプリの初回起動で数字が入る）
+   ・すでに保存データがあれば、上書きするか確認（＝自分の編集を勝手に消さない）
+   ・#以降はURLに残す（ホーム画面アプリが毎回このリンクで開いても大丈夫なように） */
+(function(){ const h=location.hash||""; if(h.indexOf("#d=")===0){ try{ const j=decodeURIComponent(escape(atob(h.slice(3)))); JSON.parse(j);
+  const cur=localStorage.getItem(LS_KEY);
+  if(!cur){ localStorage.setItem(LS_KEY,j); }
+  else if(cur!==j && confirm("このリンクの数字で上書きする？（今スマホに入っている数字は消えます）")){ localStorage.setItem(LS_KEY,j); }
+  }catch(e){} } })();
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.assets)return s;}catch(e){}return JSON.parse(JSON.stringify(DEFAULTS));}
 function save(){localStorage.setItem(LS_KEY,JSON.stringify(S));}
