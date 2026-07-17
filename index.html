@@ -53,6 +53,7 @@
   .slider{margin:16px 0 6px}
   .slider label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px;color:var(--sub)}
   .slider label b{color:var(--mint);font-weight:600}
+  .slider label b .mo{font-size:11px;color:var(--sub);font-weight:400;margin-left:7px}
   input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:#232a35}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
     background:var(--mint);box-shadow:0 0 0 4px rgba(53,224,177,.15),0 4px 8px rgba(0,0,0,.4);cursor:pointer}
@@ -155,7 +156,7 @@
       <div class="slider"><label>運用利回り（年）<b><span id="rVal"></span>%</b></label><input type="range" id="rate" min="0" max="8" step="0.1"></div>
       <div class="slider"><label>支出インフレ率（年）<b><span id="infVal"></span>%</b></label><input type="range" id="inflation" min="0" max="5" step="0.1"></div>
     </div>
-    <div class="slider"><label>base生活費 <span class="sub">（教育費・住宅ローン・特別費は別）</span><b><span id="livVal"></span> 万円</b></label><input type="range" id="living" min="100" max="1200" step="10"></div>
+    <div class="slider"><label>base生活費 <span class="sub">（教育費・住宅ローン・特別費は別）</span><b><span id="livVal"></span></b></label><input type="range" id="living" min="100" max="1200" step="10"></div>
 
     <p class="lbl" style="margin:18px 0 6px">収入（万/年）</p>
     <div class="grid2">
@@ -238,7 +239,7 @@ const DEFAULTS={
     {name:"外貨建て保険",val:0, color:"#fb7185"},
     {name:"その他",    val:0, color:"#5b6472"},
   ],
-  rate:3.0, inflation:2.0, living:550,
+  rate:5.0, inflation:2.0, living:550,
   incH:365, incM:252, incR:63, incA:50, incG:158,   // 夫給与/私/不動産/手当/贈与（万）
   allowEnd:2035, giftEnd:2092,                        // 手当の終了年・贈与はずっと(相続想定)
   hFire:2050, hFireInc:150,                             // 夫サイドFIRE年・その後の夫収入(side=多少稼ぐ)
@@ -378,7 +379,12 @@ function bindSliders(){
   ].forEach(([id,lab,dec])=>{
     const el=document.getElementById(id); if(!el)return; el.value=S[id];
     const lb=document.getElementById(lab);
-    const show=v=>{ if(!lb)return; if(id==="giftEnd"&&+v>=END_YEAR)lb.textContent="ずっと"; else lb.textContent=(+v).toFixed(dec)+(id==="allowEnd"||id==="giftEnd"?"年":""); };
+    const MONEY=new Set(["living","incH","incM","incR","pension","incA","incG","hFireInc"]);
+    const show=v=>{ if(!lb)return;
+      if(id==="giftEnd"&&+v>=END_YEAR){lb.textContent="ずっと";return;}
+      if(id==="allowEnd"||id==="giftEnd"){lb.textContent=(+v).toFixed(0)+"年";return;}
+      if(MONEY.has(id)){lb.innerHTML=(+v).toFixed(0)+'万<span class="mo">月'+(v/12).toFixed(1)+'万</span>';return;}
+      lb.textContent=(+v).toFixed(dec); };
     show(S[id]);
     el.oninput=e=>{S[id]=+e.target.value;show(S[id]);save();renderChart();};
   });
