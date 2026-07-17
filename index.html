@@ -496,9 +496,9 @@ function importRows(rows){
     for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iT)continue;const y=(R[iD]||"").split("/")[0];const v=parseInt(String(R[iT]).replace(/[,"]/g,""),10);if(!y||isNaN(v))continue;
       if(!(y in seen)){seen[y]=v; S.assetHist[y]={"預金":g(R,iYo),"株式":g(R,iKa),"投信":g(R,iTo),"年金":g(R,iNe),"ポイント":g(R,iPo)};}}
     let n=0;for(const y in seen){if(y!=="2026"){S.actuals[y]=Math.round(seen[y]/10000);n++;}} return {type:"資産推移",n}; }
-  if(has("計算対象")&&has("金額")&&has("大項目")){ const iTgt=idx("計算対象"),iAmt=idx("金額"),iMaj=idx("大項目"),iTr=idx("振替"),iD=idx("日付"),EX={"現金・カード":1,"未分類":1};
+  if(has("計算対象")&&has("金額")&&has("大項目")){ const iTgt=idx("計算対象"),iAmt=idx("金額"),iMaj=idx("大項目"),iMid=idx("中項目"),iTr=idx("振替"),iD=idx("日付"),EX={"現金・カード":1,"未分類":1},BIZ={"立替":1,"事業経費":1,"ぽぽち":1,"ぱぴち":1};
     let inc=0,exp=0,year="",cat={};
-    for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iMaj)continue;if(String(R[iTgt]).trim()!=="1")continue;if(iTr>=0&&String(R[iTr]).trim()==="1")continue;if(EX[R[iMaj]])continue;
+    for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iMaj)continue;if(String(R[iTgt]).trim()!=="1")continue;if(iTr>=0&&String(R[iTr]).trim()==="1")continue;if(EX[R[iMaj]])continue;if(iMid>=0&&BIZ[String(R[iMid]).trim()])continue;
       const a=parseInt(String(R[iAmt]).replace(/[,"]/g,""),10);if(isNaN(a))continue;if(!year)year=(R[iD]||"").split("/")[0];
       if(a>=0)inc+=a;else{exp+=a;cat[R[iMaj]]=(cat[R[iMaj]]||0)+(-a);}}
     if(year){S.savings[year]=Math.round((inc+exp)/10000);
