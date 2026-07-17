@@ -57,6 +57,12 @@
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
     background:var(--mint);box-shadow:0 0 0 4px rgba(53,224,177,.15),0 4px 8px rgba(0,0,0,.4);cursor:pointer}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .fpchk{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);padding:7px 0;cursor:pointer}
+  .fpchk input{width:18px;height:18px;accent-color:var(--mint)}
+  .evin{border:1px solid var(--line);border-radius:9px;background:#0e131b;color:var(--ink);font-size:14px;font-family:inherit;padding:9px 10px}
+  .evin:focus{outline:none;border-color:var(--mint)}
+  .evrow{display:flex;align-items:center;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+  .evrow .x{color:var(--faint);cursor:pointer;padding:2px 8px;font-size:16px}
   .chartlegend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--sub);margin-top:10px}
   .chartlegend span{display:flex;align-items:center;gap:7px}
   .ln{width:16px;height:3px;border-radius:2px;display:inline-block}
@@ -146,45 +152,44 @@
       <span><i class="ln" style="background:#f6c451"></i>実録</span>
     </div>
     <div class="grid2">
-      <div class="slider">
-        <label>運用利回り（年）<b><span id="rVal"></span>%</b></label>
-        <input type="range" id="rate" min="0" max="8" step="0.1">
-      </div>
-      <div class="slider">
-        <label>生活費（年）<b><span id="livVal"></span> 万円</b></label>
-        <input type="range" id="living" min="100" max="1200" step="10">
-      </div>
+      <div class="slider"><label>運用利回り（年）<b><span id="rVal"></span>%</b></label><input type="range" id="rate" min="0" max="8" step="0.1"></div>
+      <div class="slider"><label>支出インフレ率（年）<b><span id="infVal"></span>%</b></label><input type="range" id="inflation" min="0" max="5" step="0.1"></div>
     </div>
-    <p class="lbl" style="margin:16px 0 2px">① 現役</p>
-    <div class="slider">
-      <label>年間の貯蓄（サイドFIREまで）<b><span id="sVal"></span> 万円</b></label>
-      <input type="range" id="save" min="0" max="500" step="10">
-    </div>
-    <p class="lbl" style="margin:16px 0 2px">② サイドFIRE（バイト・パートでいくら稼ぐ？）</p>
+    <div class="slider"><label>base生活費 <span class="sub">（教育費・住宅ローン・特別費は別）</span><b><span id="livVal"></span> 万円</b></label><input type="range" id="living" min="100" max="1200" step="10"></div>
+
+    <p class="lbl" style="margin:18px 0 6px">収入（万/年）</p>
     <div class="grid2">
-      <div class="slider">
-        <label>サイドFIRE開始年<b><span id="sfVal"></span></b></label>
-        <input type="range" id="sfire" min="2026" max="2060" step="1">
-      </div>
-      <div class="slider">
-        <label>サイドFIRE中の年間収入<b><span id="sfiVal"></span> 万円</b></label>
-        <input type="range" id="sfincome" min="0" max="1000" step="10">
-      </div>
+      <div class="slider"><label>夫の給与<b><span id="ihVal"></span></b></label><input type="range" id="incH" min="0" max="1000" step="10"></div>
+      <div class="slider"><label>私（給与＋出張手当）<b><span id="imVal"></span></b></label><input type="range" id="incM" min="0" max="800" step="10"></div>
     </div>
-    <p class="note" id="sfNote" style="margin-top:4px"></p>
-    <p class="lbl" style="margin:16px 0 2px">③ 完全リタイア</p>
     <div class="grid2">
-      <div class="slider">
-        <label>完全リタイア年<b><span id="retVal"></span></b></label>
-        <input type="range" id="ret" min="2035" max="2075" step="1">
-      </div>
-      <div class="slider">
-        <label>年金など収入（年）<b><span id="penVal"></span> 万円</b></label>
-        <input type="range" id="pension" min="0" max="800" step="10">
-      </div>
+      <div class="slider"><label>不動産所得（継続）<b><span id="irVal"></span></b></label><input type="range" id="incR" min="0" max="500" step="5"></div>
+      <div class="slider"><label>年金など<span class="sub">（リタイア後・世帯）</span><b><span id="penVal"></span></b></label><input type="range" id="pension" min="0" max="800" step="10"></div>
     </div>
-    <p class="note" id="retNote" style="margin-top:4px"></p>
-    <p class="note">3段階でシミュ：①現役でためる → ②サイドFIRE（バイト等でいくら稼ぐか）→ ③完全リタイア（年金など）。②③は「収入−生活費」で自動計算。スライダーで緑線が即変化。実録を入れた年は確定して、そこから先が追従するよ。</p>
+    <div class="grid2">
+      <div class="slider"><label>子ども手当 <span class="sub">〜<span id="aeVal"></span></span><b><span id="iaVal"></span></b></label><input type="range" id="incA" min="0" max="200" step="5"><input type="range" id="allowEnd" min="2026" max="2045" step="1" style="margin-top:8px"></div>
+      <div class="slider"><label>贈与 <span class="sub">〜<span id="geVal"></span></span><b><span id="igVal"></span></b></label><input type="range" id="incG" min="0" max="500" step="10"><input type="range" id="giftEnd" min="2026" max="2092" step="1" style="margin-top:8px"></div>
+    </div>
+
+    <p class="lbl" style="margin:18px 0 6px">夫のサイドFIRE</p>
+    <div class="grid2">
+      <div class="slider"><label>夫サイドFIRE年<b><span id="hfVal"></span></b></label><input type="range" id="hFire" min="2026" max="2065" step="1"></div>
+      <div class="slider"><label>その後の夫の収入<b><span id="hfiVal"></span></b></label><input type="range" id="hFireInc" min="0" max="500" step="10"></div>
+    </div>
+    <div class="slider"><label>完全リタイア年 <span class="sub">（私も収入ストップ→年金へ）</span><b><span id="retVal"></span></b></label><input type="range" id="ret" min="2035" max="2075" step="1"></div>
+
+    <p class="lbl" style="margin:18px 0 6px">FPから自動反映</p>
+    <label class="fpchk"><input type="checkbox" id="loanOn"><span>🏠 住宅ローン返済（86〜90万/年・2052で完済）</span></label>
+    <label class="fpchk"><input type="checkbox" id="eduOn"><span>🎓 教育費（大学進学などFP準拠）</span></label>
+
+    <p class="lbl" style="margin:18px 0 6px">特別費（ライフイベント・一時支出）</p>
+    <div id="eventsBox"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+      <input type="number" id="evYear" placeholder="年" class="evin" style="width:80px">
+      <input type="number" id="evAmt" placeholder="金額（万）" class="evin" style="flex:1">
+      <button class="btn ghost" id="evAdd" style="white-space:nowrap">＋追加</button>
+    </div>
+    <p class="note">収入は人別・項目別。夫サイドFIRE年を動かすと"夫の給与だけ"消えて、私＋不動産＋手当＋贈与は続くよ。緑線が即変化。実録を入れた年は確定してそこから追従。</p>
   </div>
 
   <!-- 実録 -->
@@ -233,9 +238,18 @@ const DEFAULTS={
     {name:"外貨建て保険",val:0, color:"#fb7185"},
     {name:"その他",    val:0, color:"#5b6472"},
   ],
-  rate:3.0, living:1000, save:250, sfire:2040, sfincome:200, ret:2053, pension:315,
-  actuals:{}, savings:{}, assetHist:{}, expHist:{}
+  rate:3.0, inflation:2.0, living:550,
+  incH:365, incM:252, incR:63, incA:50, incG:158,   // 夫給与/私/不動産/手当/贈与（万）
+  allowEnd:2035, giftEnd:2092,                        // 手当の終了年・贈与はずっと(相続想定)
+  hFire:2050, hFireInc:150,                             // 夫サイドFIRE年・その後の夫収入(side=多少稼ぐ)
+  ret:2060, pension:315,                              // 完全リタイア年・年金
+  loanOn:true, eduOn:true,
+  events:{}, actuals:{}, savings:{}, assetHist:{}, expHist:{}
 };
+// FPから抽出：住宅ローン返済（万/年・2052以降0）
+const FPLOAN={}; for(let y=2025;y<=2033;y++)FPLOAN[y]=86; for(let y=2034;y<=2051;y++)FPLOAN[y]=90;
+// FPから抽出：教育費（子ども関連費・万/年）
+const FPEDU={2025:118,2026:69,2027:141,2028:97,2029:140,2030:116,2031:252,2032:167,2033:319,2034:503,2035:399,2036:681,2037:577,2038:292,2039:295,2045:117,2046:119};
 const FP={2025:3366,2026:3758,2027:4079,2028:4245,2029:4061,2030:4274,2031:4373,2032:4129,2033:4177,2034:4007,2035:3825,2036:3470,2037:3228,2038:3276,2039:3320,2040:3559,2041:3932,2042:4316,2043:4712,2044:5143,2045:5468,2046:5922,2047:5782,2048:7286,2049:7522,2050:7621,2051:7875,2052:8214,2053:9444,2054:9516,2055:9602,2056:9691,2057:9782,2058:9876,2059:9972,2060:10070,2061:10172,2062:10321,2063:10477,2064:10640,2065:10629,2066:10801,2067:10977,2068:11158,2069:11375,2070:11597,2071:11825,2072:12059,2073:12299,2074:12545,2075:12798,2076:13058,2077:13325,2078:13600,2079:13912,2080:14230,2081:14553,2082:14882,2083:15217,2084:15558,2085:15906,2086:16260,2087:16621,2088:16988,2089:17362,2090:17744,2091:18132,2092:18528};
 
 const LS_KEY="poko_lifeplan_v1";
@@ -258,19 +272,33 @@ function val(nm){const a=S.assets.find(x=>x.name===nm);return a?(+a.val||0):0;}
 function fmt(n){return Math.round(n).toLocaleString();}
 function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(x||1)));const n=x/p;const m=n<1.5?1:n<3?2:n<7?5:10;return m*p;}
 
+// 各年の収入合計（人別・フェーズ別）
+function incomeAt(y){
+  let inc=0;
+  inc += (y<(+S.hFire) ? (+S.incH||0) : (+S.hFireInc||0));  // 夫：給与（サイドFIRE年で副業収入に）
+  inc += (y<(+S.ret) ? (+S.incM||0) : 0);                    // 私：完全リタイアまで継続
+  inc += (+S.incR||0);                                       // 不動産：継続
+  inc += (y<=(+S.allowEnd) ? (+S.incA||0) : 0);              // 子ども手当：終了年まで
+  inc += (y<=(+S.giftEnd) ? (+S.incG||0) : 0);               // 贈与：終了年まで
+  inc += (y>=(+S.ret) ? (+S.pension||0) : 0);                // 年金：完全リタイアから
+  return inc;
+}
+// 各年の支出合計（base生活費インフレ＋住宅ローン＋教育費＋特別費）
+function expenseAt(y){
+  const inf=(+S.inflation||0)/100;
+  let exp=(+S.living||0)*Math.pow(1+inf, y-START_YEAR);
+  if(S.loanOn!==false) exp+=(FPLOAN[y]||0);
+  if(S.eduOn!==false) exp+=(FPEDU[y]||0);
+  exp+=(+((S.events||{})[y])||0);
+  return exp;
+}
 function simSeries(){
-  // 3段階：現役(貯蓄)→サイドFIRE(副業-生活費の年間収支)→完全リタイア(取り崩し)
   const r=S.rate/100, out={}; let prev=null;
-  const sfire=+S.sfire||START_YEAR, ret=Math.max(sfire,+S.ret||sfire);
   for(let y=START_YEAR;y<=END_YEAR;y++){
     const act=S.actuals[y];
     if(act!=null&&act!==""){out[y]=+act;prev=+act;continue;}
     if(prev===null){out[y]=totalNow();prev=out[y];continue;}
-    const living=+S.living||0;
-    let v=prev*(1+r);
-    if(y<=sfire) v+=(+S.save||0);                   // 現役：貯蓄（そのまま）
-    else if(y<=ret) v+=((+S.sfincome||0)-living);   // サイドFIRE：副業収入−生活費
-    else v+=((+S.pension||0)-living);               // 完全リタイア：年金など収入−生活費
+    const v=prev*(1+r)+(incomeAt(y)-expenseAt(y));
     out[y]=Math.max(0,Math.round(v));prev=out[y];
   }
   return out;
@@ -343,18 +371,29 @@ function renderTable(){
   }));
 }
 function bindSliders(){
-  [["rate","rVal",1],["living","livVal",0],["save","sVal",0],["sfire","sfVal",0],["sfincome","sfiVal",0],["ret","retVal",0],["pension","penVal",0]].forEach(([id,lab,dec])=>{
-    const el=document.getElementById(id);el.value=S[id];document.getElementById(lab).textContent=(+S[id]).toFixed(dec);
-    el.addEventListener("input",e=>{S[id]=+e.target.value;document.getElementById(lab).textContent=(+S[id]).toFixed(dec);save();renderChart();updateNotes();});
+  [["rate","rVal",1],["inflation","infVal",1],["living","livVal",0],
+   ["incH","ihVal",0],["incM","imVal",0],["incR","irVal",0],["pension","penVal",0],
+   ["incA","iaVal",0],["allowEnd","aeVal",0],["incG","igVal",0],["giftEnd","geVal",0],
+   ["hFire","hfVal",0],["hFireInc","hfiVal",0],["ret","retVal",0]
+  ].forEach(([id,lab,dec])=>{
+    const el=document.getElementById(id); if(!el)return; el.value=S[id];
+    const lb=document.getElementById(lab);
+    const show=v=>{ if(!lb)return; if(id==="giftEnd"&&+v>=END_YEAR)lb.textContent="ずっと"; else lb.textContent=(+v).toFixed(dec)+(id==="allowEnd"||id==="giftEnd"?"年":""); };
+    show(S[id]);
+    el.oninput=e=>{S[id]=+e.target.value;show(S[id]);save();renderChart();};
   });
-  updateNotes();
+  ["loanOn","eduOn"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.checked=S[id]!==false;el.onchange=e=>{S[id]=e.target.checked;save();renderChart();};});
+  const add=document.getElementById("evAdd");
+  if(add)add.onclick=()=>{const y=parseInt(document.getElementById("evYear").value,10),a=parseInt(document.getElementById("evAmt").value,10);
+    if(!y||isNaN(a))return; if(!S.events)S.events={}; S.events[y]=(S.events[y]||0)+a;
+    document.getElementById("evYear").value="";document.getElementById("evAmt").value="";save();renderChart();renderEvents();};
+  renderEvents();
 }
-function updateNotes(){
-  const living=+S.living||0, sfNet=(+S.sfincome||0)-living, rNet=(+S.pension||0)-living;
-  const fmtN=(n)=>"<b style=\"color:"+(n>=0?"#35e0b1":"#ff7a66")+"\">"+(n>=0?"＋":"−")+Math.abs(n)+"万</b>";
-  const sn=document.getElementById("sfNote"), rn=document.getElementById("retNote");
-  if(sn) sn.innerHTML="→ この間の年間収支："+fmtN(sfNet)+"（副業"+(+S.sfincome||0)+" − 生活費"+living+"）";
-  if(rn) rn.innerHTML="→ この間の年間収支："+fmtN(rNet)+"（年金など"+(+S.pension||0)+" − 生活費"+living+"）";
+function renderEvents(){
+  const box=document.getElementById("eventsBox"); if(!box)return;
+  const ev=S.events||{}, ys=Object.keys(ev).sort();
+  box.innerHTML=ys.length?ys.map(y=>'<div class="evrow"><span style="flex:1">'+y+'年</span><span class="num" style="color:var(--ink)">'+ev[y]+'万</span><span class="x" data-y="'+y+'">✕</span></div>').join(""):'<p class="note" style="margin:0">まだ無し。下で追加（例：2035年に車の買い替え 250万）</p>';
+  box.querySelectorAll(".x").forEach(x=>x.onclick=()=>{delete S.events[x.dataset.y];save();renderChart();renderEvents();});
 }
 function renderDetail(){
   const dc=document.getElementById("detailCard"); if(!dc)return;
