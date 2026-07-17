@@ -190,6 +190,10 @@
   <!-- 実録 -->
   <div class="card">
     <p class="lbl">Record · 実録（毎年の実際の総資産）</p>
+    <input type="file" id="csvFile" accept=".csv,text/csv" multiple style="display:none">
+    <button class="btn ghost" id="csvBtn" style="width:100%;margin-bottom:6px">📄 マネフォのCSVを読み込む（資産推移／家計簿・複数OK）</button>
+    <p class="note" id="impMsg" style="text-align:center;min-height:16px;margin:0 0 12px"></p>
+    <div id="savingsBox"></div>
     <div class="tablewrap">
       <table>
         <thead><tr><th>年</th><th>年齢</th><th>FPプラン</th><th>実録 (万円)</th></tr></thead>
@@ -220,7 +224,7 @@ const DEFAULTS={
     {name:"その他",    val:0, color:"#5b6472"},
   ],
   rate:3.0, living:265, save:250, sfire:2040, sfincome:200, ret:2053, pension:315,
-  actuals:{}
+  actuals:{}, savings:{}
 };
 const FP={2025:3366,2026:3758,2027:4079,2028:4245,2029:4061,2030:4274,2031:4373,2032:4129,2033:4177,2034:4007,2035:3825,2036:3470,2037:3228,2038:3276,2039:3320,2040:3559,2041:3932,2042:4316,2043:4712,2044:5143,2045:5468,2046:5922,2047:5782,2048:7286,2049:7522,2050:7621,2051:7875,2052:8214,2053:9444,2054:9516,2055:9602,2056:9691,2057:9782,2058:9876,2059:9972,2060:10070,2061:10172,2062:10321,2063:10477,2064:10640,2065:10629,2066:10801,2067:10977,2068:11158,2069:11375,2070:11597,2071:11825,2072:12059,2073:12299,2074:12545,2075:12798,2076:13058,2077:13325,2078:13600,2079:13912,2080:14230,2081:14553,2082:14882,2083:15217,2084:15558,2085:15906,2086:16260,2087:16621,2088:16988,2089:17362,2090:17744,2091:18132,2092:18528};
 
@@ -292,20 +296,27 @@ function renderAlloc(){
 function renderChart(){
   const sim=simSeries(),cv=document.getElementById("chart"),c=cv.getContext("2d"),W=cv.width,H=cv.height,PL=48,PR=14,PT=14,PB=24;
   c.clearRect(0,0,W,H);
-  const ys=[];for(let y=START_YEAR;y<=END_YEAR;y++)ys.push(y);
-  let max=0;ys.forEach(y=>max=Math.max(max,FP[y]||0,sim[y]||0));max=Math.ceil(max/2000)*2000||2000;
-  const x=y=>PL+(y-START_YEAR)/(END_YEAR-START_YEAR)*(W-PL-PR), yv=v=>H-PB-(v/max)*(H-PT-PB);
+  // 実録の最古年（100万以上ある年）から表示＝過去の実際の伸びも見える
+  const aySig=Object.keys(S.actuals).map(Number).filter(y=>+S.actuals[y]>=100);
+  const CS=aySig.length?Math.min(START_YEAR,Math.min(...aySig)):START_YEAR;
+  const ys=[];for(let y=CS;y<=END_YEAR;y++)ys.push(y);
+  let max=0;ys.forEach(y=>max=Math.max(max,FP[y]||0,sim[y]||0,(+S.actuals[y]||0)));max=Math.ceil(max/2000)*2000||2000;
+  const x=y=>PL+(y-CS)/(END_YEAR-CS)*(W-PL-PR), yv=v=>H-PB-(v/max)*(H-PT-PB);
   c.strokeStyle="#1e2530";c.fillStyle="#5b6472";c.font="10px -apple-system,sans-serif";c.textAlign="right";
   const step=niceStep(max/5);
   for(let g=0;g<=max+1;g+=step){const yy=yv(g);c.beginPath();c.moveTo(PL,yy);c.lineTo(W-PR,yy);c.stroke();
     const oku=g/10000;c.fillText((oku%1?oku.toFixed(1):oku)+"億",PL-6,yy+3);}
-  c.textAlign="center";[START_YEAR,2040,2055,2070,2092].forEach(yr=>{if(yr<=END_YEAR)c.fillText(yr,x(yr),H-7);});
+  // 「今」の縦線
+  if(CS<START_YEAR){c.setLineDash([3,3]);c.strokeStyle="#3a4452";c.beginPath();c.moveTo(x(START_YEAR),PT);c.lineTo(x(START_YEAR),H-PB);c.stroke();c.setLineDash([]);}
+  c.textAlign="center";c.fillStyle="#5b6472";[CS,START_YEAR,2045,2065,2085,2092].filter((v,i,a)=>v>=CS&&v<=END_YEAR&&a.indexOf(v)===i).forEach(yr=>c.fillText(yr,x(yr),H-7));
   function line(g,color,w,dash){c.setLineDash(dash||[]);c.strokeStyle=color;c.lineWidth=w;c.beginPath();let st=false;
-    ys.forEach(y=>{const v=g(y);if(v==null)return;const px=x(y),py=yv(v);if(!st){c.moveTo(px,py);st=true;}else c.lineTo(px,py);});c.stroke();c.setLineDash([]);}
+    ys.forEach(y=>{const v=g(y);if(v==null){st=false;return;}const px=x(y),py=yv(v);if(!st){c.moveTo(px,py);st=true;}else c.lineTo(px,py);});c.stroke();c.setLineDash([]);}
   line(y=>FP[y],"#5b6472",1.8,[5,4]);
-  c.shadowColor="rgba(53,224,177,.5)";c.shadowBlur=8;line(y=>sim[y],"#35e0b1",2.6);c.shadowBlur=0;
-  c.fillStyle="#f6c451";ys.forEach(y=>{const a=S.actuals[y];if(a!=null&&a!==""){const px=x(y),py=yv(+a);c.beginPath();c.arc(px,py,3.6,0,7);c.fill();
-    c.shadowColor="rgba(246,196,81,.6)";c.shadowBlur=8;c.fill();c.shadowBlur=0;}});
+  c.shadowColor="rgba(53,224,177,.5)";c.shadowBlur=8;line(y=>sim[y]!=null&&y>=START_YEAR?sim[y]:null,"#35e0b1",2.6);c.shadowBlur=0;
+  // 実録：琥珀の線＋点（過去〜今の実際の伸び）
+  const actAt=y=>{const a=S.actuals[y];return(a!=null&&a!=="")?+a:null;};
+  c.shadowColor="rgba(246,196,81,.4)";c.shadowBlur=6;line(actAt,"#f6c451",2.4);c.shadowBlur=0;
+  c.fillStyle="#f6c451";ys.forEach(y=>{const a=actAt(y);if(a!=null){const px=x(y),py=yv(a);c.beginPath();c.arc(px,py,2.8,0,7);c.fill();}});
 }
 function renderTable(){
   const sim=simSeries(),tb=document.getElementById("tbody");tb.innerHTML="";
@@ -335,7 +346,45 @@ function updateNotes(){
   if(sn) sn.innerHTML="→ この間の年間収支："+fmtN(sfNet)+"（副業"+(+S.sfincome||0)+" − 生活費"+living+"）";
   if(rn) rn.innerHTML="→ この間の年間収支："+fmtN(rNet)+"（年金など"+(+S.pension||0)+" − 生活費"+living+"）";
 }
-function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();}
+function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();}
+
+/* ===== CSV読み込み（マネフォ：資産推移→実録／家計簿→年間貯蓄。ブラウザ内で処理・送信なし） ===== */
+function decodeCSV(buf){ let t=new TextDecoder("utf-8").decode(buf).replace(/^﻿/,""); if(t.indexOf("日付")<0&&t.indexOf("計算対象")<0){try{t=new TextDecoder("shift-jis").decode(buf);}catch(e){}} return t; }
+function parseCSVText(t){ const rows=[];let row=[],cur="",q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else if(ch==='"'){ q=true; }
+    else if(ch===','){ row.push(cur); cur=""; }
+    else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=""; }
+    else if(ch!=='\r'){ cur+=ch; }
+  }
+  if(cur!==""||row.length){row.push(cur);rows.push(row);} return rows; }
+function importRows(rows){
+  if(!rows.length)return{type:null};
+  const h=rows[0].map(c=>c.replace(/^﻿/,"").trim());
+  const has=n=>h.some(c=>c.indexOf(n)>=0), idx=n=>h.findIndex(c=>c.indexOf(n)>=0);
+  if(has("合計")&&has("日付")){ const iD=idx("日付"),iT=idx("合計"),seen={};
+    for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iT)continue;const y=(R[iD]||"").split("/")[0];const v=parseInt(String(R[iT]).replace(/[,"]/g,""),10);if(!y||isNaN(v))continue;if(!(y in seen))seen[y]=v;}
+    let n=0;for(const y in seen){if(y!=="2026"){S.actuals[y]=Math.round(seen[y]/10000);n++;}} return {type:"資産推移",n}; }
+  if(has("計算対象")&&has("金額")&&has("大項目")){ const iTgt=idx("計算対象"),iAmt=idx("金額"),iMaj=idx("大項目"),iTr=idx("振替"),iD=idx("日付"),EX={"現金・カード":1,"未分類":1};
+    let inc=0,exp=0,year="";
+    for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iMaj)continue;if(String(R[iTgt]).trim()!=="1")continue;if(iTr>=0&&String(R[iTr]).trim()==="1")continue;if(EX[R[iMaj]])continue;
+      const a=parseInt(String(R[iAmt]).replace(/[,"]/g,""),10);if(isNaN(a))continue;if(!year)year=(R[iD]||"").split("/")[0];if(a>=0)inc+=a;else exp+=a;}
+    if(year){if(!S.savings)S.savings={};S.savings[year]=Math.round((inc+exp)/10000);return {type:"家計簿",year};} }
+  return {type:null};
+}
+function renderSavings(){ const box=document.getElementById("savingsBox");if(!box)return;const sv=S.savings||{},ys=Object.keys(sv).sort();
+  box.innerHTML=ys.length?'<p class="note" style="margin:0 0 10px">📊 実際の年間貯蓄（家計簿CSV・振替除外）：'+ys.map(y=>y+' <b style="color:'+(sv[y]>=0?"#35e0b1":"#ff7a66")+'">'+(sv[y]>=0?"+":"")+sv[y]+'万</b>').join('　／　')+'</p>':""; }
+document.getElementById("csvBtn").addEventListener("click",()=>document.getElementById("csvFile").click());
+document.getElementById("csvFile").addEventListener("change",async(e)=>{
+  const files=[...e.target.files];if(!files.length)return;const msg=document.getElementById("impMsg");msg.textContent="読み込み中…";
+  const res=[];for(const f of files){try{const buf=await f.arrayBuffer();res.push(importRows(parseCSVText(decodeCSV(buf))));}catch(err){res.push({type:null});}}
+  save();renderAll();
+  const asset=res.filter(r=>r.type==="資産推移").reduce((a,b)=>a+(b.n||0),0),kakei=res.filter(r=>r.type==="家計簿").length;
+  const parts=[];if(asset)parts.push("資産推移→実録 "+asset+"年ぶん");if(kakei)parts.push("家計簿→貯蓄 "+kakei+"年ぶん");
+  msg.textContent=parts.length?("読み込んだよ ✓ "+parts.join(" / ")):"対応CSVじゃないかも（マネフォの資産推移か家計簿を試してね）";
+  e.target.value="";
+});
 document.getElementById("saveBtn").addEventListener("click",()=>{save();const b=document.getElementById("saveBtn");b.textContent="保存したよ ✓";setTimeout(()=>b.textContent="保存 ✓",1200);});
 document.getElementById("resetBtn").addEventListener("click",()=>{if(confirm("入力をぜんぶ消してまっさらにする？")){S=JSON.parse(JSON.stringify(DEFAULTS));save();renderAll();}});
 document.getElementById("linkBtn").addEventListener("click",()=>{
