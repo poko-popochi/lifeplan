@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Life Plan — ぽこ</title>
+<style>
+  :root{
+    --bg:#0d1016; --bg2:#11151d; --card:#161b24; --card2:#1b212c;
+    --ink:#eef1f6; --sub:#8b95a6; --faint:#5b6472; --line:#252c38;
+    --mint:#35e0b1; --coral:#ff7a66; --amber:#f6c451; --violet:#a78bfa; --sky:#5aa9f0; --rose:#fb7185; --slate:#5b6472;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(53,224,177,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(90,169,240,.08), transparent 55%),
+      var(--bg);
+    color:var(--ink);min-height:100vh;
+    font-family:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,"Hiragino Sans",sans-serif;
+    -webkit-font-smoothing:antialiased;padding:0 0 70px;letter-spacing:.01em}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  .wrap{max-width:760px;margin:0 auto;padding:26px 18px}
+  .top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px}
+  h1{font-size:19px;font-weight:600;margin:0;letter-spacing:.06em}
+  h1 .thin{color:var(--sub);font-weight:300}
+  .safe{font-size:10.5px;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+  .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);
+    border-radius:22px;padding:20px;margin:0 0 16px;box-shadow:0 20px 40px -24px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.02)}
+  .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:0 0 14px;font-weight:600}
+  .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+  .heroval{font-size:44px;font-weight:600;line-height:1;letter-spacing:-.01em;
+    background:linear-gradient(180deg,#fff,#cfe9df);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .unit{font-size:15px;color:var(--sub);margin-left:6px;font-weight:400}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:999px}
+  .pill.up{background:rgba(53,224,177,.12);color:var(--mint);border:1px solid rgba(53,224,177,.25)}
+  .pill.down{background:rgba(255,122,102,.12);color:var(--coral);border:1px solid rgba(255,122,102,.25)}
+  .sub{font-size:12.5px;color:var(--sub)}
+  .sub b{color:var(--ink);font-weight:600}
+  .mt{margin-top:12px}
+  .allocwrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+  canvas{display:block}
+  .legend{flex:1;min-width:240px}
+  .legrow{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13.5px;border-bottom:1px solid rgba(255,255,255,.03)}
+  .legrow:last-child{border-bottom:none}
+  .dot{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none}
+  .legrow .nm{flex:1;color:var(--ink)}
+  .legrow input{width:104px;text-align:right;border:1px solid var(--line);border-radius:9px;padding:6px 9px;font-size:13px;
+    font-family:inherit;background:#0e131b;color:var(--ink)}
+  .legrow input:focus{outline:none;border-color:var(--mint)}
+  .legrow .pct{width:42px;text-align:right;color:var(--sub);font-size:12px}
+  .slider{margin:16px 0 6px}
+  .slider label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px;color:var(--sub)}
+  .slider label b{color:var(--mint);font-weight:600}
+  input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:#232a35}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+    background:var(--mint);box-shadow:0 0 0 4px rgba(53,224,177,.15),0 4px 8px rgba(0,0,0,.4);cursor:pointer}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .chartlegend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--sub);margin-top:10px}
+  .chartlegend span{display:flex;align-items:center;gap:7px}
+  .ln{width:16px;height:3px;border-radius:2px;display:inline-block}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.06em;position:sticky;top:0;background:var(--card)}
+  td.plan{color:var(--faint)}
+  td input{width:100px;text-align:right;border:1px solid var(--line);border-radius:9px;padding:6px 8px;font-size:13px;
+    font-family:inherit;background:#0e131b;color:var(--ink)}
+  td input:focus{outline:none;border-color:var(--mint)}
+  td input.filled{background:rgba(53,224,177,.10);border-color:rgba(53,224,177,.4);color:var(--mint);font-weight:600}
+  .tablewrap{max-height:380px;overflow:auto;border:1px solid var(--line);border-radius:14px}
+  .tablewrap::-webkit-scrollbar{width:8px}.tablewrap::-webkit-scrollbar-thumb{background:#2a323f;border-radius:8px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .btn{font-family:inherit;font-size:13px;border:none;border-radius:999px;padding:11px 20px;cursor:pointer;transition:transform .08s,filter .15s;font-weight:600}
+  .btn:active{transform:scale(.95)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--sub)}
+  .btn.accent{background:linear-gradient(180deg,#3ff0be,#1fbf95);color:#04231c}
+  .btn.accent:hover{filter:brightness(1.06)}
+  .note{font-size:11px;color:var(--faint);line-height:1.7;margin-top:10px}
+  .foot{font-size:10.5px;color:var(--faint);text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>LIFE&nbsp;PLAN <span class="thin">/ ぽこ</span></h1>
+    <span class="safe">◎ この端末の中だけ・オフライン</span>
+  </div>
+
+  <!-- 現在地 -->
+  <div class="card">
+    <p class="lbl">Total Assets · いまの総資産</p>
+    <div class="hero">
+      <div><span class="heroval num" id="totalNow">–</span><span class="unit">万円</span></div>
+      <div style="text-align:right">
+        <span class="pill up" id="planPill">–</span>
+        <div class="sub mt" id="planText"></div>
+      </div>
+    </div>
+    <div class="sub mt" id="yoyText"></div>
+  </div>
+
+  <!-- アセット比率 -->
+  <div class="card">
+    <p class="lbl">Allocation · アセット比率</p>
+    <div class="allocwrap">
+      <canvas id="donut" width="190" height="190"></canvas>
+      <div class="legend" id="legend"></div>
+    </div>
+    <p class="note">金額を書き換えると即反映。マネフォと違って仮想通貨は"現金"に混ぜず独立クラスで集計してるよ。</p>
+  </div>
+
+  <!-- 推移 -->
+  <div class="card">
+    <p class="lbl">Projection · 40年の推移（プラン / シミュ / 実録）</p>
+    <canvas id="chart" width="700" height="310" style="width:100%;height:auto"></canvas>
+    <div class="chartlegend">
+      <span><i class="ln" style="background:#5b6472"></i>FPプラン</span>
+      <span><i class="ln" style="background:#35e0b1"></i>あなたのシミュ</span>
+      <span><i class="ln" style="background:#f6c451"></i>実録</span>
+    </div>
+    <div class="slider">
+      <label>運用利回り（年）<b><span id="rVal"></span>%</b></label>
+      <input type="range" id="rate" min="0" max="8" step="0.1">
+    </div>
+    <div class="slider">
+      <label>年間の貯蓄（リタイアまで）<b><span id="sVal"></span> 万円</b></label>
+      <input type="range" id="save" min="0" max="500" step="10">
+    </div>
+    <div class="grid2">
+      <div class="slider">
+        <label>リタイア年<b><span id="retVal"></span></b></label>
+        <input type="range" id="ret" min="2035" max="2065" step="1">
+      </div>
+      <div class="slider">
+        <label>リタイア後の取り崩し/年<b><span id="dVal"></span> 万円</b></label>
+        <input type="range" id="draw" min="0" max="400" step="10">
+      </div>
+    </div>
+    <p class="note">スライダーで「あなたのシミュ（緑）」が即変化。実録を入れた年は確定して、そこから先が追従するよ。</p>
+  </div>
+
+  <!-- 実録 -->
+  <div class="card">
+    <p class="lbl">Record · 実録（毎年の実際の総資産）</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>年</th><th>年齢</th><th>FPプラン</th><th>実録 (万円)</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:16px;flex-wrap:wrap;gap:10px">
+      <button class="btn ghost" id="resetBtn">まっさらにする</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn ghost" id="linkBtn">別の端末へ（リンク）</button>
+        <button class="btn accent" id="saveBtn">保存 ✓</button>
+      </div>
+    </div>
+    <p class="foot">自動保存（この端末のブラウザ内だけ）。ネットには一切送信していません。<br>「別の端末へ」でリンクを作れば、スマホ↔PCにデータを移せるよ（リンクの中身はサーバーを通りません）。</p>
+  </div>
+</div>
+
+<script>
+const START_YEAR=2026, END_YEAR=2092, BIRTH_HEAD=1988;
+/* 既定値は"データ抜き"（残高0・実績なし）。ぽこの実データは共有リンク(#d=...)で端末に読み込む＝サーバーには残らない */
+const DEFAULTS={
+  assets:[
+    {name:"投資信託",  val:0, color:"#5aa9f0"},
+    {name:"預金・現金", val:0, color:"#35e0b1"},
+    {name:"年金",      val:0, color:"#a78bfa"},
+    {name:"仮想通貨",  val:0, color:"#f6c451"},
+    {name:"外貨建て保険",val:0, color:"#fb7185"},
+    {name:"その他",    val:0, color:"#5b6472"},
+  ],
+  rate:3.0, save:250, ret:2053, draw:130,
+  actuals:{}
+};
+const FP={2025:3366,2026:3758,2027:4079,2028:4245,2029:4061,2030:4274,2031:4373,2032:4129,2033:4177,2034:4007,2035:3825,2036:3470,2037:3228,2038:3276,2039:3320,2040:3559,2041:3932,2042:4316,2043:4712,2044:5143,2045:5468,2046:5922,2047:5782,2048:7286,2049:7522,2050:7621,2051:7875,2052:8214,2053:9444,2054:9516,2055:9602,2056:9691,2057:9782,2058:9876,2059:9972,2060:10070,2061:10172,2062:10321,2063:10477,2064:10640,2065:10629,2066:10801,2067:10977,2068:11158,2069:11375,2070:11597,2071:11825,2072:12059,2073:12299,2074:12545,2075:12798,2076:13058,2077:13325,2078:13600,2079:13912,2080:14230,2081:14553,2082:14882,2083:15217,2084:15558,2085:15906,2086:16260,2087:16621,2088:16988,2089:17362,2090:17744,2091:18132,2092:18528};
+
+const LS_KEY="poko_lifeplan_v1";
+/* 共有リンク(#d=base64)で開かれたら、その端末のlocalStorageに取り込む。#以降はサーバーに送信されない */
+(function(){ const h=location.hash||""; if(h.indexOf("#d=")===0){ try{ const j=decodeURIComponent(escape(atob(h.slice(3)))); JSON.parse(j); localStorage.setItem(LS_KEY,j); }catch(e){} history.replaceState(null,"",location.pathname+location.search); } })();
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&s.assets)return s;}catch(e){}return JSON.parse(JSON.stringify(DEFAULTS));}
+function save(){localStorage.setItem(LS_KEY,JSON.stringify(S));}
+function totalNow(){return S.assets.reduce((a,b)=>a+(+b.val||0),0);}
+function val(nm){const a=S.assets.find(x=>x.name===nm);return a?(+a.val||0):0;}
+function fmt(n){return Math.round(n).toLocaleString();}
+function niceStep(x){const p=Math.pow(10,Math.floor(Math.log10(x||1)));const n=x/p;const m=n<1.5?1:n<3?2:n<7?5:10;return m*p;}
+
+function simSeries(){
+  const r=S.rate/100, out={}; let prev=null;
+  for(let y=START_YEAR;y<=END_YEAR;y++){
+    const act=S.actuals[y];
+    if(act!=null&&act!==""){out[y]=+act;prev=+act;continue;}
+    if(prev===null){out[y]=totalNow();prev=out[y];continue;}
+    let v=prev*(1+r); v+= (y<=S.ret)?(+S.save||0):-(+S.draw||0);
+    out[y]=Math.max(0,Math.round(v));prev=out[y];
+  }
+  return out;
+}
+
+function renderSummary(){
+  const t=totalNow();
+  document.getElementById("totalNow").textContent=fmt(t);
+  const plan=FP[START_YEAR]||0, diff=t-plan;
+  const pill=document.getElementById("planPill");
+  pill.className="pill "+(diff>=0?"up":"down");
+  pill.textContent=(diff>=0?"▲ ＋":"▼ −")+fmt(Math.abs(diff))+"万 vs プラン";
+  document.getElementById("planText").textContent="FPプラン "+START_YEAR+"：約 "+fmt(plan)+" 万";
+  const alt=Math.round(((val("仮想通貨")+val("外貨建て保険"))/Math.max(1,t))*100);
+  document.getElementById("yoyText").innerHTML='マネフォ資産分は1年前から約 <b>+1,078万</b>。別枠（仮想通貨＋外貨保険）は全体の <b>'+alt+'%</b>。';
+}
+function renderAlloc(){
+  const t=totalNow(), leg=document.getElementById("legend");leg.innerHTML="";
+  S.assets.forEach((a,i)=>{
+    const pct=t?(a.val/t*100):0, row=document.createElement("div");row.className="legrow";
+    row.innerHTML=`<span class="dot" style="background:${a.color}"></span><span class="nm">${a.name}</span>
+      <input type="number" class="num" value="${a.val}" data-i="${i}"><span class="pct num">${pct.toFixed(0)}%</span>`;
+    leg.appendChild(row);
+  });
+  leg.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{S.assets[+e.target.dataset.i].val=+e.target.value||0;save();renderSummary();renderAlloc();renderChart();}));
+  const cv=document.getElementById("donut"),c=cv.getContext("2d"),W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=84,r0=52;
+  c.clearRect(0,0,W,H);let ang=-Math.PI/2;
+  S.assets.forEach(a=>{const f=t?a.val/t:0,a2=ang+f*Math.PI*2;c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,R,ang,a2);c.closePath();c.fillStyle=a.color;c.fill();ang=a2;});
+  c.beginPath();c.arc(cx,cy,r0,0,7);c.fillStyle="#12161e";c.fill();
+  c.textAlign="center";c.fillStyle="#eef1f6";c.font="600 22px -apple-system,sans-serif";c.fillText(fmt(t),cx,cy+1);
+  c.font="10px -apple-system,sans-serif";c.fillStyle="#8b95a6";c.fillText("万円 total",cx,cy+17);
+}
+function renderChart(){
+  const sim=simSeries(),cv=document.getElementById("chart"),c=cv.getContext("2d"),W=cv.width,H=cv.height,PL=48,PR=14,PT=14,PB=24;
+  c.clearRect(0,0,W,H);
+  const ys=[];for(let y=START_YEAR;y<=END_YEAR;y++)ys.push(y);
+  let max=0;ys.forEach(y=>max=Math.max(max,FP[y]||0,sim[y]||0));max=Math.ceil(max/2000)*2000||2000;
+  const x=y=>PL+(y-START_YEAR)/(END_YEAR-START_YEAR)*(W-PL-PR), yv=v=>H-PB-(v/max)*(H-PT-PB);
+  c.strokeStyle="#1e2530";c.fillStyle="#5b6472";c.font="10px -apple-system,sans-serif";c.textAlign="right";
+  const step=niceStep(max/5);
+  for(let g=0;g<=max+1;g+=step){const yy=yv(g);c.beginPath();c.moveTo(PL,yy);c.lineTo(W-PR,yy);c.stroke();
+    const oku=g/10000;c.fillText((oku%1?oku.toFixed(1):oku)+"億",PL-6,yy+3);}
+  c.textAlign="center";[START_YEAR,2040,2055,2070,2092].forEach(yr=>{if(yr<=END_YEAR)c.fillText(yr,x(yr),H-7);});
+  function line(g,color,w,dash){c.setLineDash(dash||[]);c.strokeStyle=color;c.lineWidth=w;c.beginPath();let st=false;
+    ys.forEach(y=>{const v=g(y);if(v==null)return;const px=x(y),py=yv(v);if(!st){c.moveTo(px,py);st=true;}else c.lineTo(px,py);});c.stroke();c.setLineDash([]);}
+  line(y=>FP[y],"#5b6472",1.8,[5,4]);
+  c.shadowColor="rgba(53,224,177,.5)";c.shadowBlur=8;line(y=>sim[y],"#35e0b1",2.6);c.shadowBlur=0;
+  c.fillStyle="#f6c451";ys.forEach(y=>{const a=S.actuals[y];if(a!=null&&a!==""){const px=x(y),py=yv(+a);c.beginPath();c.arc(px,py,3.6,0,7);c.fill();
+    c.shadowColor="rgba(246,196,81,.6)";c.shadowBlur=8;c.fill();c.shadowBlur=0;}});
+}
+function renderTable(){
+  const sim=simSeries(),tb=document.getElementById("tbody");tb.innerHTML="";
+  for(let y=START_YEAR;y<=END_YEAR;y++){
+    const age=y-BIRTH_HEAD,act=S.actuals[y],tr=document.createElement("tr");
+    tr.innerHTML=`<td class="num">${y}</td><td class="plan num">${age}</td><td class="plan num">${FP[y]?fmt(FP[y]):"–"}</td>
+      <td><input type="number" class="num ${act!=null&&act!==""?'filled':''}" data-y="${y}" value="${act!=null?act:""}" placeholder="${fmt(sim[y])}"></td>`;
+    tb.appendChild(tr);
+  }
+  tb.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{
+    const y=e.target.dataset.y,v=e.target.value;
+    if(v===""||v==null)delete S.actuals[y];else S.actuals[y]=+v;
+    save();renderChart();renderSummary();e.target.className="num "+((v!==""&&v!=null)?'filled':'');
+  }));
+}
+function bindSliders(){
+  [["rate","rVal",1],["save","sVal",0],["ret","retVal",0],["draw","dVal",0]].forEach(([id,lab,dec])=>{
+    const el=document.getElementById(id);el.value=S[id];document.getElementById(lab).textContent=(+S[id]).toFixed(dec);
+    el.addEventListener("input",e=>{S[id]=+e.target.value;document.getElementById(lab).textContent=(+S[id]).toFixed(dec);save();renderChart();});
+  });
+}
+function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();}
+document.getElementById("saveBtn").addEventListener("click",()=>{save();const b=document.getElementById("saveBtn");b.textContent="保存したよ ✓";setTimeout(()=>b.textContent="保存 ✓",1200);});
+document.getElementById("resetBtn").addEventListener("click",()=>{if(confirm("入力をぜんぶ消してまっさらにする？")){S=JSON.parse(JSON.stringify(DEFAULTS));save();renderAll();}});
+document.getElementById("linkBtn").addEventListener("click",()=>{
+  const link=location.origin+location.pathname+"#d="+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+  if(navigator.clipboard){navigator.clipboard.writeText(link).then(()=>{const b=document.getElementById("linkBtn");b.textContent="コピーしたよ ✓";setTimeout(()=>b.textContent="別の端末へ（リンク）",1500);});}
+  prompt("このリンクを別の端末（スマホ等）で開くと、この内容が移ります。コピーして送ってね：",link);
+});
+renderAll();
+</script>
+</body>
+</html>
