@@ -636,8 +636,8 @@ function bindLive(){
 function famDefault(){ return [
   {name:"夫（竜也）",birth:1989,kid:false},
   {name:"私",birth:1988,kid:false},
-  {name:"竜太",birth:2015,kid:true},
-  {name:"真央",birth:2017,kid:true}
+  {name:"竜太",birth:2015,kid:true,off:1},
+  {name:"真央",birth:2017,kid:true,off:0}
 ];}
 function renderFamily(){
   const box=document.getElementById("famBox"); if(!box)return;
@@ -646,10 +646,11 @@ function renderFamily(){
     +'<input class="evin" style="flex:1;min-width:90px" data-i="'+i+'" data-k="name" value="'+(m.name||"")+'">'
     +'<input type="number" class="evin" style="width:88px" data-i="'+i+'" data-k="birth" value="'+(m.birth||"")+'" placeholder="生年">'
     +'<label class="fpchk" style="padding:0;gap:5px"><input type="checkbox" data-i="'+i+'" data-k="kid" '+(m.kid?"checked":"")+'><span>子</span></label>'
+    +(m.kid?'<input type="number" class="evin" style="width:58px" data-i="'+i+'" data-k="off" value="'+(m.off||0)+'" title="入学を何年ずらすか（早生まれ等）">':'')
     +'<span class="x" data-del="'+i+'" style="color:var(--faint);cursor:pointer;padding:4px 8px;font-size:15px">✕</span></div>').join("")
     +'<button class="btn ghost" id="famAdd" style="margin-top:8px">＋家族を追加</button>';
   box.querySelectorAll("input[data-k]").forEach(el=>{el.onchange=()=>{const i=+el.dataset.i,k=el.dataset.k;
-    if(k==="kid")S.family[i].kid=el.checked; else if(k==="birth")S.family[i].birth=+el.value||0; else S.family[i].name=el.value;
+    if(k==="kid"){S.family[i].kid=el.checked;renderFamily();} else if(k==="birth")S.family[i].birth=+el.value||0; else if(k==="off")S.family[i].off=+el.value||0; else S.family[i].name=el.value;
     save(); renderTimeline();};});
   box.querySelectorAll("[data-del]").forEach(x=>x.onclick=()=>{S.family.splice(+x.dataset.del,1);save();renderFamily();renderTimeline();});
   const add=document.getElementById("famAdd"); if(add)add.onclick=()=>{S.family.push({name:"名前",birth:2020,kid:false});save();renderFamily();renderTimeline();};
@@ -659,7 +660,7 @@ function renderTimeline(){
   const fam=(S.family&&S.family.length)?S.family:famDefault();
   const EDU=[[6,"小学入学"],[12,"中学入学"],[15,"高校入学"],[18,"大学入学"],[22,"大学卒業"]];
   const ev={}, push=(y,s,cost)=>{if(!y)return;(ev[y]=ev[y]||[]).push({s:s,cost:cost||0});};
-  fam.forEach(m=>{ if(m.kid&&m.birth) EDU.forEach(([a,label])=>push(m.birth+a,(m.name||"").replace(/[（(].*[)）]/,"")+" "+label)); });
+  fam.forEach(m=>{ if(m.kid&&m.birth) EDU.forEach(([a,label])=>push(m.birth+a+(+m.off||0),(m.name||"").replace(/[（(].*[)）]/,"")+" "+label)); });
   push(2052,"🏠 住宅ローン完済");
   if(+S.hFire) push(+S.hFire,"夫サイドFIRE");
   if(+S.ret) push(+S.ret,"完全リタイア");
