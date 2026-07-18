@@ -80,6 +80,9 @@
   .tlcard .ages{font-size:11px;color:var(--sub);margin:4px 0 9px;line-height:1.5}
   .tlcard .evt{font-size:12px;color:var(--mint);margin:4px 0;line-height:1.4}
   .tlcard .evt .cost{color:var(--amber)}
+  .tlmoney{font-size:11px;color:var(--sub);margin-top:9px;border-top:1px solid var(--line);padding-top:8px;line-height:1.7}
+  .tlmoney b{color:var(--ink);font-weight:600}
+  .tlmoney .tag{font-size:9px;color:var(--amber);border:1px solid rgba(246,196,81,.4);border-radius:6px;padding:1px 5px;margin-left:5px}
   .chartlegend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--sub);margin-top:10px}
   .chartlegend span{display:flex;align-items:center;gap:7px}
   .ln{width:16px;height:3px;border-radius:2px;display:inline-block}
@@ -502,8 +505,48 @@ function renderChart(){
   const actAt=y=>{const a=S.actuals[y];return(a!=null&&a!=="")?+a:null;};
   c.shadowColor="rgba(246,196,81,.4)";c.shadowBlur=6;line(actAt,"#f6c451",2.4);c.shadowBlur=0;
   c.fillStyle="#f6c451";ys.forEach(y=>{const a=actAt(y);if(a!=null){const px=x(y),py=yv(a);c.beginPath();c.arc(px,py,2.8,0,7);c.fill();}});
+  // タップした年のマーカー＋数字（グラフを触ると出る）
+  CHART_GEOM={CS:CS,PL:PL,PR:PR};
+  if(CHART_SEL!=null&&CHART_SEL>=CS&&CHART_SEL<=END_YEAR){
+    const sy=CHART_SEL, px=x(sy);
+    const isAct=(S.actuals[sy]!=null&&S.actuals[sy]!=="");
+    const v=isAct?+S.actuals[sy]:(sy>=START_YEAR?sim[sy]:null);
+    c.strokeStyle="rgba(238,241,246,.4)";c.lineWidth=1;c.beginPath();c.moveTo(px,PT);c.lineTo(px,H-PB);c.stroke();
+    if(v!=null){c.fillStyle=isAct?"#f6c451":"#35e0b1";c.beginPath();c.arc(px,yv(v),4.5,0,7);c.fill();}
+    const lines=[sy+"年・"+ageStr(sy,"me")];
+    if(v!=null)lines.push((isAct?"実録 ":"シミュ ")+manOku(v));
+    if(sy>START_YEAR){const inc=Math.round(incomeAt(sy)),ex=Math.round(expenseAt(sy)),net=inc-ex;
+      lines.push("収入"+inc+" 支出"+ex);lines.push("収支 "+(net>=0?"+":"")+net+"万");}
+    else if(S.expHist&&S.expHist[sy]){const o=S.expHist[sy],net=(o.収入||0)-(o.支出||0);lines.push("実績 収入"+(o.収入||0)+" 支出"+(o.支出||0));lines.push("収支 "+(net>=0?"+":"")+net+"万");}
+    if(FP[sy])lines.push("FPプラン "+manOku(FP[sy]));
+    c.font="11px -apple-system,sans-serif";
+    const bw=Math.max(...lines.map(t=>c.measureText(t).width))+18, bh=lines.length*16+12;
+    const bx=Math.min(Math.max(px+10,PL),W-PR-bw), byy=PT+4;
+    c.fillStyle="rgba(13,16,22,.92)";c.strokeStyle="#3a4452";c.beginPath();
+    (c.roundRect?c.roundRect(bx,byy,bw,bh,8):c.rect(bx,byy,bw,bh));c.fill();c.stroke();
+    c.textAlign="left";
+    lines.forEach((t,i)=>{c.fillStyle=i===0?"#eef1f6":(t.indexOf("収支 +")===0?"#35e0b1":t.indexOf("収支 -")===0?"#ff7a66":"#a9b2c1");c.fillText(t,bx+9,byy+18+i*16);});
+    c.textAlign="center";
+  }
   renderCashflow(CS);
 }
+/* グラフタップ→その年の数字（もう一度別の場所を触ると移動・同じ年をタップで消える） */
+let CHART_SEL=null, CHART_GEOM=null;
+(function(){
+  const cv=document.getElementById("chart"); if(!cv)return;
+  cv.style.touchAction="pan-y";
+  function pick(e){
+    if(!CHART_GEOM)return;
+    const r=cv.getBoundingClientRect(), cx=(e.clientX-r.left)*(cv.width/r.width);
+    const {CS,PL,PR}=CHART_GEOM, W=cv.width;
+    let y=Math.round(CS+(cx-PL)/(W-PL-PR)*(END_YEAR-CS));
+    y=Math.max(CS,Math.min(END_YEAR,y));
+    CHART_SEL=(CHART_SEL===y&&e.type==="pointerdown")?null:y;
+    renderChart();
+  }
+  cv.addEventListener("pointerdown",pick);
+  cv.addEventListener("pointermove",e=>{if(e.buttons)pick(e);});
+})();
 // 収支の推移（各年の収入・支出をシミュで折れ線に）
 function renderCashflow(CS){
   const cv=document.getElementById("cfchart");if(!cv)return;
@@ -583,8 +626,8 @@ function bindSliders(){
 // その年に私/夫が何歳かの表示（生年は年表タブの家族から。算数いらず）
 function ageStr(y,who){
   const fam=(S.family&&S.family.length)?S.family:famDefault();
-  const me=(fam.find(m=>(m.name||"").indexOf("私")>=0)||{}).birth||1988;
-  const hus=(fam.find(m=>(m.name||"").indexOf("夫")>=0)||{}).birth||1989;
+  const me=famBirthY(fam.find(m=>(m.name||"").indexOf("私")>=0)||{})||1988;
+  const hus=famBirthY(fam.find(m=>(m.name||"").indexOf("夫")>=0)||{})||1989;
   if(who==="hus")return "夫"+(y-hus)+"歳";
   if(who==="both")return "私"+(y-me)+"歳・夫"+(y-hus)+"歳";
   return "私"+(y-me)+"歳";
@@ -675,44 +718,60 @@ function bindLive(){
 }
 /* ===== 年表（家族の年齢＋ライフイベント） ===== */
 function famDefault(){ return [
-  {name:"夫（竜也）",birth:1989,kid:false},
-  {name:"私",birth:1988,kid:false},
-  {name:"竜太",birth:2015,kid:true,off:1},
-  {name:"真央",birth:2017,kid:true,off:0}
+  {name:"夫（竜也）",by:1989,kid:false},
+  {name:"私",by:1988,kid:false},
+  {name:"竜太",by:2016,bm:1,kid:true},
+  {name:"真央",by:2017,bm:1,kid:true}
 ];}
+function famBirthY(m){return +m.by||+m.birth||0;}
+// 学年の基準年（日本の学年制度：4月〜翌3月生まれが同学年。1〜3月生まれ＝早生まれは前の学年）
+function famBase(m){ const y=famBirthY(m); if(!y)return 0; const mo=+m.bm||0;
+  if(mo) return mo>=4 ? y : y-1;
+  return y+(+m.off||0)-1;   // 旧形式(birth+ずらし)の互換
+}
+function manOku(v){return v>=10000?((v/10000).toFixed(1).replace(/\.0$/,""))+"億":fmt(v)+"万";}
 function renderFamily(){
   const box=document.getElementById("famBox"); if(!box)return;
   if(!S.family||!S.family.length) S.family=famDefault();
   box.innerHTML=S.family.map((m,i)=>'<div class="row" style="gap:8px;margin:6px 0;flex-wrap:wrap;align-items:center">'
     +'<input class="evin" style="flex:1;min-width:90px" data-i="'+i+'" data-k="name" value="'+(m.name||"")+'">'
-    +'<input type="number" class="evin" style="width:88px" data-i="'+i+'" data-k="birth" value="'+(m.birth||"")+'" placeholder="生年">'
+    +'<input type="number" class="evin" style="width:78px" data-i="'+i+'" data-k="by" value="'+(famBirthY(m)||"")+'" placeholder="生年">'
+    +'<input type="number" class="evin" style="width:56px" data-i="'+i+'" data-k="bm" value="'+(m.bm||"")+'" placeholder="月" min="1" max="12">'
     +'<label class="fpchk" style="padding:0;gap:5px"><input type="checkbox" data-i="'+i+'" data-k="kid" '+(m.kid?"checked":"")+'><span>子</span></label>'
-    +(m.kid?'<input type="number" class="evin" style="width:58px" data-i="'+i+'" data-k="off" value="'+(m.off||0)+'" title="入学を何年ずらすか（早生まれ等）">':'')
     +'<span class="x" data-del="'+i+'" style="color:var(--faint);cursor:pointer;padding:4px 8px;font-size:15px">✕</span></div>').join("")
     +'<button class="btn ghost" id="famAdd" style="margin-top:8px">＋家族を追加</button>';
   box.querySelectorAll("input[data-k]").forEach(el=>{el.onchange=()=>{const i=+el.dataset.i,k=el.dataset.k;
-    if(k==="kid"){S.family[i].kid=el.checked;renderFamily();} else if(k==="birth")S.family[i].birth=+el.value||0; else if(k==="off")S.family[i].off=+el.value||0; else S.family[i].name=el.value;
+    if(k==="kid"){S.family[i].kid=el.checked;renderFamily();} else if(k==="by"){S.family[i].by=+el.value||0;delete S.family[i].birth;delete S.family[i].off;} else if(k==="bm"){S.family[i].bm=+el.value||0;delete S.family[i].off;} else S.family[i].name=el.value;
     save(); renderTimeline();};});
   box.querySelectorAll("[data-del]").forEach(x=>x.onclick=()=>{S.family.splice(+x.dataset.del,1);save();renderFamily();renderTimeline();});
-  const add=document.getElementById("famAdd"); if(add)add.onclick=()=>{S.family.push({name:"名前",birth:2020,kid:false});save();renderFamily();renderTimeline();};
+  const add=document.getElementById("famAdd"); if(add)add.onclick=()=>{S.family.push({name:"名前",by:2020,kid:false});save();renderFamily();renderTimeline();};
 }
 function renderTimeline(){
   const track=document.getElementById("tlTrack"); if(!track)return;
   const fam=(S.family&&S.family.length)?S.family:famDefault();
-  const EDU=[[6,"小学入学"],[12,"中学入学"],[15,"高校入学"],[18,"大学入学"],[22,"大学卒業"]];
+  const EDU=[[7,"小学入学"],[13,"中学入学"],[16,"高校入学"],[19,"大学入学"],[23,"大学卒業"]];   // 学年基準年+n（生年月日から自動）
   const ev={}, push=(y,s,cost)=>{if(!y)return;(ev[y]=ev[y]||[]).push({s:s,cost:cost||0});};
-  fam.forEach(m=>{ if(m.kid&&m.birth) EDU.forEach(([a,label])=>push(m.birth+a+(+m.off||0),(m.name||"").replace(/[（(].*[)）]/,"")+" "+label)); });
+  fam.forEach(m=>{ const b=famBase(m); if(m.kid&&b) EDU.forEach(([a,label])=>push(b+a,(m.name||"").replace(/[（(].*[)）]/,"")+" "+label)); });
   push(2052,"🏠 住宅ローン完済");
   if(+S.hFire) push(+S.hFire,"夫サイドFIRE");
   if(+S.ret) push(+S.ret,"完全リタイア");
   Object.keys(S.events||{}).forEach(y=>push(+y,(evNote(y)||"特別費"),evAmt(y)));
   const userY=new Set(Object.keys(S.events||{}).map(Number));   // 自分で入れたイベントは過去でも年表に残す（ライフメモリー）
   const years=[...new Set(Object.keys(ev).map(Number))].filter(y=>y>=START_YEAR||userY.has(y)).sort((a,b)=>a-b);
+  const sim=simSeries();
   track.innerHTML=years.length?years.map(y=>{
-    const ages=fam.map(m=>{const nm=(m.name||"").replace(/[（(].*[)）]/,"");const a=m.birth?y-m.birth:null;return nm+(a!=null&&a>=0?a:"–");}).join("　");
+    const ages=fam.map(m=>{const nm=(m.name||"").replace(/[（(].*[)）]/,"");const b=famBirthY(m);const a=b?y-b:null;return nm+(a!=null&&a>=0?a:"–");}).join("　");
     const evts=ev[y].map(e=>'<div class="evt">'+e.s+(e.cost?' <span class="cost">'+e.cost+'万</span>':'')+'</div>').join("");
     const now=(y===START_YEAR);
-    return '<div class="tlcard"'+(now?' style="border-color:var(--mint);box-shadow:0 0 0 1px var(--mint)"':'')+'><div class="yr">'+y+(now?' <span style="font-size:10px;color:var(--mint)">今</span>':'')+'</div><div class="ages">'+ages+'</div>'+evts+'</div>';
+    // 資産と収支：実録があれば実録、未来はシミュ
+    const isAct=(S.actuals&&S.actuals[y]!=null&&S.actuals[y]!=="");
+    const asset=isAct?+S.actuals[y]:(y>=START_YEAR?sim[y]:null);
+    let money="";
+    if(asset!=null){ money='<div class="tlmoney">資産 <b>'+manOku(asset)+'</b>'+(isAct?'<span class="tag">実録</span>':'');
+      if(y>START_YEAR){ const net=Math.round(incomeAt(y)-expenseAt(y)); money+='<br>収支 <b style="color:'+(net>=0?"#35e0b1":"#ff7a66")+'">'+(net>=0?"+":"")+net+'万</b>'; }
+      else if(S.expHist&&S.expHist[y]){ const o=S.expHist[y],net=(o.収入||0)-(o.支出||0); money+='<br>収支 <b style="color:'+(net>=0?"#35e0b1":"#ff7a66")+'">'+(net>=0?"+":"")+net+'万</b><span class="tag">実績</span>'; }
+      money+='</div>'; }
+    return '<div class="tlcard"'+(now?' style="border-color:var(--mint);box-shadow:0 0 0 1px var(--mint)"':'')+'><div class="yr">'+y+(now?' <span style="font-size:10px;color:var(--mint)">今</span>':'')+'</div><div class="ages">'+ages+'</div>'+evts+money+'</div>';
   }).join(""):'<p class="note" style="margin:0">生年を入れると、これからのイベントが横に並ぶよ。下から自由に足せる。</p>';
   const add=document.getElementById("tlAdd");
   if(add)add.onclick=()=>{const y=parseInt(document.getElementById("tlYear").value,10),a=parseInt(document.getElementById("tlAmt").value,10),note=(document.getElementById("tlNote").value||"").trim();
