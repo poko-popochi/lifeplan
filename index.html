@@ -563,9 +563,10 @@ function bindSliders(){
     const el=document.getElementById(id); if(!el)return; el.value=S[id];
     const lb=document.getElementById(lab);
     const MONEY=new Set(["living","incH","incM","incR","pension","incA","incG","hFireInc","incCar","incBiz"]);
+    const YEARS={hFire:"hus",ret:"me",allowEnd:"me",giftEnd:"me"};   // 年スライダー→誰の年齢を添えるか
     const show=v=>{ if(!lb)return;
       if(id==="giftEnd"&&+v>=END_YEAR){lb.textContent="ずっと";return;}
-      if(id==="allowEnd"||id==="giftEnd"){lb.textContent=(+v).toFixed(0)+"年";return;}
+      if(YEARS[id]){lb.innerHTML=(+v).toFixed(0)+'年<span class="mo">'+ageStr(+v,YEARS[id])+'</span>';return;}
       if(MONEY.has(id)){lb.innerHTML=(+v).toFixed(0)+'万<span class="mo">月'+(v/12).toFixed(1)+'万</span>';return;}
       lb.textContent=(+v).toFixed(dec); };
     show(S[id]);
@@ -579,6 +580,15 @@ function bindSliders(){
     document.getElementById("evYear").value="";document.getElementById("evAmt").value="";document.getElementById("evNote").value="";
     save();renderChart();renderEvents();if(typeof renderTimeline==="function")renderTimeline();};
   renderEvents();
+}
+// その年に私/夫が何歳かの表示（生年は年表タブの家族から。算数いらず）
+function ageStr(y,who){
+  const fam=(S.family&&S.family.length)?S.family:famDefault();
+  const me=(fam.find(m=>(m.name||"").indexOf("私")>=0)||{}).birth||1988;
+  const hus=(fam.find(m=>(m.name||"").indexOf("夫")>=0)||{}).birth||1989;
+  if(who==="hus")return "夫"+(y-hus)+"歳";
+  if(who==="both")return "私"+(y-me)+"歳・夫"+(y-hus)+"歳";
+  return "私"+(y-me)+"歳";
 }
 function renderEvents(){
   const box=document.getElementById("eventsBox"); if(!box)return;
