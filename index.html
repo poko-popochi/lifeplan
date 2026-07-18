@@ -134,6 +134,7 @@
     <button class="tab on" data-p="summary">サマリー</button>
     <button class="tab" data-p="asset">資産推移</button>
     <button class="tab" data-p="cash">収支</button>
+    <button class="tab" data-p="timeline">年表</button>
     <button class="tab" data-p="record">実録</button>
   </nav>
 
@@ -256,6 +257,22 @@
   </div>
   </section>
 
+  <!-- ▼ 年表 -->
+  <section class="panel" data-p="timeline" hidden>
+  <div class="card">
+    <p class="lbl">Family · 家族の生年（誰が何歳かの元になるよ）</p>
+    <div id="famBox"></div>
+    <p class="note" style="margin-top:8px">生年を直すと年表の年齢・入学の年が変わるよ。子どもは小中高大の入学が自動で出る。</p>
+  </div>
+  <div class="card">
+    <p class="lbl">Timeline · 年表（年齢とライフイベント）</p>
+    <div class="tablewrap"><table id="tlTable">
+      <thead><tr id="tlHead"></tr></thead>
+      <tbody id="tlBody"></tbody>
+    </table></div>
+  </div>
+  </section>
+
   <!-- ▼ 実録 -->
   <section class="panel" data-p="record" hidden>
   <div class="card">
@@ -302,6 +319,8 @@ const DEFAULTS={
   loanOn:true, eduOn:true, salGrow:1.0,
   // 相場・為替で自動更新する資産（レンディングのBTC/ETH数量・現物crypto万・外貨保険のUSD建て）
   live:{ btc:0, eth:0, spot:0, insUsd:0, insYr:2026, insGrow:4, fx:150, fxAuto:true, btcJpy:0, ethJpy:0, upd:"" },
+  // 年表用：家族の生年（編集可）。kid=trueなら小中高大の入学イベントを出す
+  family:[], famNote:{},
   events:{}, actuals:{}, savings:{}, assetHist:{}, expHist:{}
 };
 // FPから抽出：住宅ローン返済（万/年・2052以降0）
@@ -488,17 +507,17 @@ function renderEvents(){
 function renderDetail(){
   const ac=document.getElementById("assetHistCard"), ec=document.getElementById("expHistCard");
   const ah=S.assetHist||{}, eh=S.expHist||{};
-  const ahY=Object.keys(ah).filter(y=>{const o=ah[y]||{};return ((o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0)+(o.仮想通貨||0))>=100;}).sort();
+  const ahY=Object.keys(ah).filter(y=>{const o=ah[y]||{};return ((o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0)+(o.仮想通貨||0)+(o.外貨建て保険||0))>=100;}).sort();
   const ehY=Object.keys(eh).sort();
   if(ac)ac.style.display=ahY.length?"block":"none";
   if(ec)ec.style.display=ehY.length?"block":"none";
   if(!ahY.length&&!ehY.length)return;
-  const CLS=[["預金","#35e0b1"],["投信","#5aa9f0"],["仮想通貨","#f6c451"],["株式","#6b7280"],["年金","#a78bfa"],["ポイント","#fb7185"]];
+  const CLS=[["預金","#35e0b1"],["投信","#5aa9f0"],["仮想通貨","#f6c451"],["外貨建て保険","#fb7185"],["株式","#6b7280"],["年金","#a78bfa"],["ポイント","#4b5563"]];
   const cv=document.getElementById("assetChart"),c=cv.getContext("2d"),W=cv.width,H=cv.height,PL=46,PR=12,PT=12,PB=22;
   c.clearRect(0,0,W,H);
   if(ahY.length){
     const y0=+ahY[0], y1=+ahY[ahY.length-1];
-    let max=0;ahY.forEach(y=>{const o=ah[y];max=Math.max(max,(o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0)+(o.仮想通貨||0));});max=Math.ceil(max/1000)*1000||1000;
+    let max=0;ahY.forEach(y=>{const o=ah[y];max=Math.max(max,(o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0)+(o.仮想通貨||0)+(o.外貨建て保険||0));});max=Math.ceil(max/1000)*1000||1000;
     const X=y=>PL+((y1===y0)?0.5:(y-y0)/(y1-y0))*(W-PL-PR), Yv=v=>H-PB-(v/max)*(H-PT-PB);
     c.strokeStyle="#1e2530";c.fillStyle="#5b6472";c.font="10px sans-serif";c.textAlign="right";
     const step=niceStep(max/4);for(let g=0;g<=max+1;g+=step){const yy=Yv(g);c.beginPath();c.moveTo(PL,yy);c.lineTo(W-PR,yy);c.stroke();const o=g/10000;c.fillText((o%1?o.toFixed(1):o)+"億",PL-5,yy+3);}
@@ -549,7 +568,45 @@ function bindLive(){
   const btn=document.getElementById("liveBtn"); if(btn)btn.onclick=fetchRates;
   const msg=document.getElementById("liveMsg"); if(msg&&L.upd&&L.btcJpy)msg.innerHTML="前回更新 "+L.upd+"　1BTC=¥"+fmt(L.btcJpy)+"／$1="+(+L.fx).toFixed(2)+"円（「相場を更新」で最新に）";
 }
-function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();bindLive();}
+/* ===== 年表（家族の年齢＋ライフイベント） ===== */
+function famDefault(){ return [
+  {name:"夫（竜也）",birth:1988,kid:false},
+  {name:"私",birth:1989,kid:false},
+  {name:"竜太",birth:2015,kid:true},
+  {name:"真央",birth:2017,kid:true}
+];}
+function renderFamily(){
+  const box=document.getElementById("famBox"); if(!box)return;
+  if(!S.family||!S.family.length) S.family=famDefault();
+  box.innerHTML=S.family.map((m,i)=>'<div class="row" style="gap:8px;margin:6px 0;flex-wrap:wrap;align-items:center">'
+    +'<input class="evin" style="flex:1;min-width:90px" data-i="'+i+'" data-k="name" value="'+(m.name||"")+'">'
+    +'<input type="number" class="evin" style="width:88px" data-i="'+i+'" data-k="birth" value="'+(m.birth||"")+'" placeholder="生年">'
+    +'<label class="fpchk" style="padding:0;gap:5px"><input type="checkbox" data-i="'+i+'" data-k="kid" '+(m.kid?"checked":"")+'><span>子</span></label>'
+    +'<span class="x" data-del="'+i+'" style="color:var(--faint);cursor:pointer;padding:4px 8px;font-size:15px">✕</span></div>').join("")
+    +'<button class="btn ghost" id="famAdd" style="margin-top:8px">＋家族を追加</button>';
+  box.querySelectorAll("input[data-k]").forEach(el=>{el.onchange=()=>{const i=+el.dataset.i,k=el.dataset.k;
+    if(k==="kid")S.family[i].kid=el.checked; else if(k==="birth")S.family[i].birth=+el.value||0; else S.family[i].name=el.value;
+    save(); renderTimeline();};});
+  box.querySelectorAll("[data-del]").forEach(x=>x.onclick=()=>{S.family.splice(+x.dataset.del,1);save();renderFamily();renderTimeline();});
+  const add=document.getElementById("famAdd"); if(add)add.onclick=()=>{S.family.push({name:"名前",birth:2020,kid:false});save();renderFamily();renderTimeline();};
+}
+function renderTimeline(){
+  const head=document.getElementById("tlHead"), body=document.getElementById("tlBody"); if(!head||!body)return;
+  const fam=(S.family&&S.family.length)?S.family:famDefault();
+  head.innerHTML='<th style="text-align:left">年</th>'+fam.map(m=>'<th>'+(m.name||"")+'</th>').join("")+'<th style="text-align:left">できごと</th>';
+  const EDU=[[6,"小学入学"],[12,"中学入学"],[15,"高校入学"],[18,"大学入学"],[22,"大学卒業"]];
+  const ev={}, push=(y,s)=>{if(!y)return;(ev[y]=ev[y]||[]).push(s);};
+  fam.forEach(m=>{ if(m.kid&&m.birth) EDU.forEach(([a,label])=>push(m.birth+a,(m.name||"")+" "+label)); });
+  push(2052,"🏠 住宅ローン完済");
+  if(+S.hFire) push(+S.hFire,"夫サイドFIRE");
+  if(+S.ret) push(+S.ret,"完全リタイア");
+  const years=[...new Set(Object.keys(ev).map(Number))].filter(y=>y>=START_YEAR).sort((a,b)=>a-b);
+  body.innerHTML=years.length?years.map(y=>{
+    const ages=fam.map(m=>{const a=m.birth?y-m.birth:null;return '<td>'+(a!=null&&a>=0?a:"–")+'</td>';}).join("");
+    return '<tr><td style="text-align:left"><b>'+y+'</b></td>'+ages+'<td style="text-align:left;color:var(--mint)">'+ev[y].join("／")+'</td></tr>';
+  }).join(""):'<tr><td colspan="'+(fam.length+2)+'" style="text-align:left;color:var(--sub)">生年を入れると、これから先のイベントが並ぶよ。</td></tr>';
+}
+function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();bindLive();renderFamily();renderTimeline();}
 
 /* タブ（画面切替） */
 function showTab(p){
