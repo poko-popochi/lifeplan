@@ -279,7 +279,8 @@
   <div class="card">
     <p class="lbl">Cashflow · 収支の推移（収入 / 支出）</p>
     <canvas id="cfchart" width="700" height="200" style="width:100%;height:auto"></canvas>
-    <p class="note" style="margin:6px 0 0"><span style="color:#35e0b1">━</span> 収入　<span style="color:#ff7a66">━</span> 支出（年ごと・シミュ）— 支出が収入を上回った年は、その差額を資産から取り崩し</p>
+    <p class="note" style="margin:6px 0 0"><span style="color:#35e0b1">━</span> 収入　<span style="color:#ff7a66">━</span> 支出（シミュ）　<span style="color:#35e0b1">●</span><span style="color:#ff7a66">●</span> 実績（家計簿CSV）— 支出が収入を上回った年は差額を資産から取り崩し</p>
+    <p class="note" id="cfNote" style="margin:4px 0 0"></p>
   </div>
   <div class="card" id="expHistCard" style="display:none">
     <p class="lbl">Breakdown · 収支の内訳（年別・実録）</p>
@@ -470,7 +471,7 @@ function renderAlloc(){
       <input type="number" class="num" value="${a.val}" data-i="${i}"><span class="pct num">${pct.toFixed(0)}%</span>`;
     leg.appendChild(row);
   });
-  leg.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{S.assets[+e.target.dataset.i].val=+e.target.value||0;save();renderSummary();renderAlloc();renderChart();}));
+  leg.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",e=>{S.assets[+e.target.dataset.i].val=+e.target.value||0;syncNowActual();save();renderSummary();renderAlloc();renderChart();renderTable();}));
   const cv=document.getElementById("donut"),c=cv.getContext("2d"),W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=84,r0=52;
   c.clearRect(0,0,W,H);let ang=-Math.PI/2;
   S.assets.forEach(a=>{const f=t?a.val/t:0,a2=ang+f*Math.PI*2;c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,R,ang,a2);c.closePath();c.fillStyle=a.color;c.fill();ang=a2;});
@@ -509,16 +510,35 @@ function renderCashflow(CS){
   const cv=document.getElementById("cfchart");if(!cv)return;
   const c=cv.getContext("2d"),W=cv.width,H=cv.height,PL=48,PR=14,PT=12,PB=20;
   c.clearRect(0,0,W,H);
-  const ys=[];for(let y=START_YEAR;y<=END_YEAR;y++)ys.push(y);
-  let max=0;ys.forEach(y=>max=Math.max(max,incomeAt(y),expenseAt(y)));max=Math.ceil(max/500)*500||500;
-  const x=y=>PL+(y-START_YEAR)/(END_YEAR-START_YEAR)*(W-PL-PR), yv=v=>H-PB-(v/max)*(H-PT-PB);
+  const eh=S.expHist||{}, ehY=Object.keys(eh).map(Number);
+  const X0=Math.min(START_YEAR, ehY.length?Math.min(...ehY):START_YEAR);
+  const ys=[];for(let y=X0;y<=END_YEAR;y++)ys.push(y);
+  let max=0;ys.forEach(y=>{ if(y>=START_YEAR)max=Math.max(max,incomeAt(y),expenseAt(y)); const o=eh[y]; if(o)max=Math.max(max,o.収入||0,o.支出||0); });
+  max=Math.ceil(max/500)*500||500;
+  const x=y=>PL+(y-X0)/(END_YEAR-X0)*(W-PL-PR), yv=v=>H-PB-(v/max)*(H-PT-PB);
   c.strokeStyle="#1e2530";c.fillStyle="#5b6472";c.font="10px -apple-system,sans-serif";c.textAlign="right";
   const step=niceStep(max/3);
   for(let g=0;g<=max+1;g+=step){const yy=yv(g);c.beginPath();c.moveTo(PL,yy);c.lineTo(W-PR,yy);c.stroke();c.fillText(g+"万",PL-6,yy+3);}
-  c.textAlign="center";c.fillStyle="#5b6472";[START_YEAR,2045,2065,2085,2092].forEach(yr=>c.fillText(yr,x(yr),H-6));
-  function line(g,color){c.strokeStyle=color;c.lineWidth=2;c.beginPath();ys.forEach((y,i)=>{const px=x(y),py=yv(g(y));if(!i)c.moveTo(px,py);else c.lineTo(px,py);});c.stroke();}
-  line(expenseAt,"#ff7a66");
-  c.shadowColor="rgba(53,224,177,.4)";c.shadowBlur=6;line(incomeAt,"#35e0b1");c.shadowBlur=0;
+  // 「今」の縦線
+  if(X0<START_YEAR){c.setLineDash([3,3]);c.strokeStyle="#3a4452";c.beginPath();c.moveTo(x(START_YEAR),PT);c.lineTo(x(START_YEAR),H-PB);c.stroke();c.setLineDash([]);}
+  c.textAlign="center";c.fillStyle="#5b6472";[X0,START_YEAR,2045,2065,2092].filter((v,i,a)=>v>=X0&&a.indexOf(v)===i).forEach(yr=>c.fillText(yr,x(yr),H-6));
+  function line(g,color){c.strokeStyle=color;c.lineWidth=2;c.beginPath();let st=false;
+    ys.forEach(y=>{const v=g(y);if(v==null){st=false;return;}const px=x(y),py=yv(v);if(!st){c.moveTo(px,py);st=true;}else c.lineTo(px,py);});c.stroke();}
+  line(y=>y>=START_YEAR?expenseAt(y):null,"#ff7a66");
+  c.shadowColor="rgba(53,224,177,.4)";c.shadowBlur=6;line(y=>y>=START_YEAR?incomeAt(y):null,"#35e0b1");c.shadowBlur=0;
+  // 実績（家計簿CSV）＝点でプロット
+  ehY.forEach(y=>{const o=eh[y];if(!o)return;const px=x(y);
+    c.fillStyle="#35e0b1";c.beginPath();c.arc(px,yv(o.収入||0),3,0,7);c.fill();
+    c.fillStyle="#ff7a66";c.beginPath();c.arc(px,yv(o.支出||0),3,0,7);c.fill();});
+  // 取り崩し開始（シミュで恒常的に支出>収入になる年）を注記
+  const noteEl=document.getElementById("cfNote");
+  if(noteEl){ let firstRed=null;
+    for(let y=START_YEAR;y<=END_YEAR;y++){ if(incomeAt(y)<expenseAt(y)){ firstRed=y; break; } }
+    let permRed=null;
+    for(let y=END_YEAR;y>=START_YEAR;y--){ if(incomeAt(y)>=expenseAt(y)){ permRed=(y<END_YEAR)?y+1:null; break; } if(y===START_YEAR)permRed=START_YEAR; }
+    noteEl.innerHTML = firstRed==null ? "シミュでは取り崩しなし（ずっと収入≧支出）"
+      : "シミュの取り崩し：はじめて赤になるのは <b style='color:#ff7a66'>"+firstRed+"年</b>"+(permRed&&permRed!==firstRed?"／<b style='color:#ff7a66'>"+permRed+"年</b>からはずっと取り崩し":permRed===firstRed?"（以降ずっと）":"（教育費の山など一時的）");
+  }
 }
 function renderTable(){
   const sim=simSeries(),tb=document.getElementById("tbody");tb.innerHTML="";
@@ -563,7 +583,10 @@ function bindSliders(){
 function renderEvents(){
   const box=document.getElementById("eventsBox"); if(!box)return;
   const ys=Object.keys(S.events||{}).sort();
-  box.innerHTML=ys.length?ys.map(y=>'<div class="evrow"><span style="width:50px"><b>'+y+'</b></span><span style="flex:1;color:var(--ink)">'+(evNote(y)||'<span style="color:var(--sub)">特別費</span>')+'</span><span class="num" style="color:var(--ink)">'+(evAmt(y)?evAmt(y)+'万':'—')+'</span><span class="x" data-y="'+y+'">✕</span></div>').join(""):'<p class="note" style="margin:0">まだ無し。下で追加（例：2035年 車の買い替え 250万）</p>';
+  box.innerHTML=ys.length?ys.map(y=>{
+    const locked=(+y<=START_YEAR)&&(S.actuals&&S.actuals[y]!=null&&S.actuals[y]!=="");
+    return '<div class="evrow"><span style="width:50px"><b>'+y+'</b></span><span style="flex:1;color:var(--ink)">'+(evNote(y)||'<span style="color:var(--sub)">特別費</span>')+(locked?' <span style="font-size:10px;color:var(--faint)">実録に込み・シミュ影響なし</span>':'')+'</span><span class="num" style="color:var(--ink)">'+(evAmt(y)?evAmt(y)+'万':'—')+'</span><span class="x" data-y="'+y+'">✕</span></div>';
+  }).join(""):'<p class="note" style="margin:0">まだ無し。下で追加（例：2035年 車の買い替え 250万）</p>';
   box.querySelectorAll(".x").forEach(x=>x.onclick=()=>{delete S.events[x.dataset.y];save();renderChart();renderEvents();if(typeof renderTimeline==="function")renderTimeline();});
 }
 function renderDetail(){
@@ -610,7 +633,10 @@ function applyLive(){
   const insMan=Math.round(insUsdNow*(+L.fx||0)/10000);
   const set=(name,v)=>{const a=(S.assets||[]).find(x=>x.name===name);if(a&&v>0)a.val=v;};
   set("仮想通貨",cryptoMan); set("外貨建て保険",insMan);
+  syncNowActual();
 }
+// 「今年の実録」はアセット合計と常に一致させる（サマリー・グラフ・シミュ起点のズレ防止）
+function syncNowActual(){ if(!S.actuals)S.actuals={}; S.actuals[START_YEAR]=totalNow(); }
 async function fetchRates(){
   const L=S.live||(S.live={}); const msg=document.getElementById("liveMsg");
   if(msg)msg.textContent="相場を取得中…⏳";
@@ -671,11 +697,13 @@ function renderTimeline(){
   if(+S.hFire) push(+S.hFire,"夫サイドFIRE");
   if(+S.ret) push(+S.ret,"完全リタイア");
   Object.keys(S.events||{}).forEach(y=>push(+y,(evNote(y)||"特別費"),evAmt(y)));
-  const years=[...new Set(Object.keys(ev).map(Number))].filter(y=>y>=START_YEAR).sort((a,b)=>a-b);
+  const userY=new Set(Object.keys(S.events||{}).map(Number));   // 自分で入れたイベントは過去でも年表に残す（ライフメモリー）
+  const years=[...new Set(Object.keys(ev).map(Number))].filter(y=>y>=START_YEAR||userY.has(y)).sort((a,b)=>a-b);
   track.innerHTML=years.length?years.map(y=>{
     const ages=fam.map(m=>{const nm=(m.name||"").replace(/[（(].*[)）]/,"");const a=m.birth?y-m.birth:null;return nm+(a!=null&&a>=0?a:"–");}).join("　");
     const evts=ev[y].map(e=>'<div class="evt">'+e.s+(e.cost?' <span class="cost">'+e.cost+'万</span>':'')+'</div>').join("");
-    return '<div class="tlcard"><div class="yr">'+y+'</div><div class="ages">'+ages+'</div>'+evts+'</div>';
+    const now=(y===START_YEAR);
+    return '<div class="tlcard"'+(now?' style="border-color:var(--mint);box-shadow:0 0 0 1px var(--mint)"':'')+'><div class="yr">'+y+(now?' <span style="font-size:10px;color:var(--mint)">今</span>':'')+'</div><div class="ages">'+ages+'</div>'+evts+'</div>';
   }).join(""):'<p class="note" style="margin:0">生年を入れると、これからのイベントが横に並ぶよ。下から自由に足せる。</p>';
   const add=document.getElementById("tlAdd");
   if(add)add.onclick=()=>{const y=parseInt(document.getElementById("tlYear").value,10),a=parseInt(document.getElementById("tlAmt").value,10),note=(document.getElementById("tlNote").value||"").trim();
