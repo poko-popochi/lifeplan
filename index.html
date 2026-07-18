@@ -74,6 +74,12 @@
   details.adv>summary::before{content:"▸  ";color:var(--faint)}
   details.adv[open]>summary::before{content:"▾  "}
   details.adv .inner{padding-top:4px}
+  .tltrack{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;-webkit-overflow-scrolling:touch}
+  .tlcard{flex:0 0 auto;width:158px;border:1px solid var(--line);border-radius:14px;padding:12px 13px;background:#0e131b}
+  .tlcard .yr{font-size:19px;font-weight:600;color:var(--ink)}
+  .tlcard .ages{font-size:11px;color:var(--sub);margin:4px 0 9px;line-height:1.5}
+  .tlcard .evt{font-size:12px;color:var(--mint);margin:4px 0;line-height:1.4}
+  .tlcard .evt .cost{color:var(--amber)}
   .chartlegend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--sub);margin-top:10px}
   .chartlegend span{display:flex;align-items:center;gap:7px}
   .ln{width:16px;height:3px;border-radius:2px;display:inline-block}
@@ -219,11 +225,13 @@
 
     <p class="lbl" style="margin:18px 0 6px">特別費（ライフイベント・一時支出）</p>
     <div id="eventsBox"></div>
-    <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
-      <input type="number" id="evYear" placeholder="年" class="evin" style="width:80px">
-      <input type="number" id="evAmt" placeholder="金額（万）" class="evin" style="flex:1">
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+      <input type="number" id="evYear" placeholder="年" class="evin" style="width:70px">
+      <input type="text" id="evNote" placeholder="内容（例：車の買い替え）" class="evin" style="flex:1;min-width:130px">
+      <input type="number" id="evAmt" placeholder="金額万" class="evin" style="width:88px">
       <button class="btn ghost" id="evAdd" style="white-space:nowrap">＋追加</button>
     </div>
+    <p class="note" style="margin:6px 0 0">金額を入れると支出に計上（グラフに反映）。内容だけ（金額なし）なら年表に印だけ付くよ。</p>
 
     <details class="adv"><summary>詳細設定（前提・めったに変えないもの）</summary><div class="inner">
       <div class="grid2">
@@ -257,7 +265,8 @@
       <label class="fpchk"><input type="checkbox" id="loanOn"><span>🏠 住宅ローン返済（86〜90万/年・2052で完済）</span></label>
       <label class="fpchk"><input type="checkbox" id="eduOn"><span>🎓 教育費（大学進学などFP準拠）</span></label>
     </div></details>
-    <p class="note">よく動かすのは上（利回り・リタイア年・夫サイドFIRE・生活費・特別費）。収入の内訳や昇給率など"前提"は詳細設定へ。夫の給与は昇給ぶん増えて、サイドFIRE年で消える。緑線が即変化。取り崩しは「収入−支出」がマイナスの年に自動でされるよ。</p>
+    <button class="btn accent" id="saveBtn2" style="width:100%;margin-top:14px">この設定を保存 ✓</button>
+    <p class="note">よく動かすのは上（利回り・リタイア年・夫サイドFIRE・生活費・特別費）。収入の内訳や昇給率など"前提"は詳細設定へ。スライダーは動かすと自動保存されるけど、確実にしたい時は上のボタンで即保存（クラウドにもすぐ反映）。</p>
   </div>
   </section>
 
@@ -282,11 +291,15 @@
     <p class="note" style="margin-top:8px">生年を直すと年表の年齢・入学の年が変わるよ。子どもは小中高大の入学が自動で出る。</p>
   </div>
   <div class="card">
-    <p class="lbl">Timeline · 年表（年齢とライフイベント）</p>
-    <div class="tablewrap"><table id="tlTable">
-      <thead><tr id="tlHead"></tr></thead>
-      <tbody id="tlBody"></tbody>
-    </table></div>
+    <p class="lbl">Timeline · 年表（横スクロール →）</p>
+    <div id="tlTrack" class="tltrack"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <input type="number" id="tlYear" placeholder="年" class="evin" style="width:70px">
+      <input type="text" id="tlNote" placeholder="内容（例：家族旅行）" class="evin" style="flex:1;min-width:120px">
+      <input type="number" id="tlAmt" placeholder="金額万(任意)" class="evin" style="width:96px">
+      <button class="btn ghost" id="tlAdd" style="white-space:nowrap">＋イベント</button>
+    </div>
+    <p class="note" style="margin-top:6px">ここで足したイベントは特別費と共通。金額を入れれば支出（グラフ）にも反映。内容だけでも年表に残るよ。</p>
   </div>
   </section>
 
@@ -321,7 +334,9 @@ const START_YEAR=2026, END_YEAR=2092, BIRTH_HEAD=1988;
 /* 既定値は"データ抜き"（残高0・実績なし）。ぽこの実データは共有リンク(#d=...)で端末に読み込む＝サーバーには残らない */
 const DEFAULTS={
   assets:[
-    {name:"投資信託",  val:0, color:"#5aa9f0"},
+    {name:"米国株投信", val:0, color:"#5aa9f0"},
+    {name:"ゴールド",   val:0, color:"#c9a227"},
+    {name:"インド株投信",val:0, color:"#ff7a45"},
     {name:"預金・現金", val:0, color:"#35e0b1"},
     {name:"年金",      val:0, color:"#a78bfa"},
     {name:"仮想通貨",  val:0, color:"#f6c451"},
@@ -390,12 +405,15 @@ function incomeAt(y){
   return inc;
 }
 // 各年の支出合計（base生活費インフレ＋住宅ローン＋教育費＋特別費）
+// 特別費（ライフイベント）：{年:{amt,note}} 形式。旧 {年:数値} も読めるように。
+function evAmt(y){const e=(S.events||{})[y];return e?(typeof e==="object"?(+e.amt||0):(+e||0)):0;}
+function evNote(y){const e=(S.events||{})[y];return (e&&typeof e==="object")?(e.note||""):"";}
 function expenseAt(y){
   const inf=(+S.inflation||0)/100;
   let exp=(+S.living||0)*Math.pow(1+inf, y-START_YEAR);
   if(S.loanOn!==false) exp+=(FPLOAN[y]||0);
   if(S.eduOn!==false) exp+=(FPEDU[y]||0);
-  exp+=(+((S.events||{})[y])||0);
+  exp+=evAmt(y);
   return exp;
 }
 function assetVal(name){const a=(S.assets||[]).find(x=>x.name===name);return a?(+a.val||0):0;}
@@ -529,16 +547,18 @@ function bindSliders(){
   });
   ["loanOn","eduOn"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.checked=S[id]!==false;el.onchange=e=>{S[id]=e.target.checked;save();renderChart();};});
   const add=document.getElementById("evAdd");
-  if(add)add.onclick=()=>{const y=parseInt(document.getElementById("evYear").value,10),a=parseInt(document.getElementById("evAmt").value,10);
-    if(!y||isNaN(a))return; if(!S.events)S.events={}; S.events[y]=(S.events[y]||0)+a;
-    document.getElementById("evYear").value="";document.getElementById("evAmt").value="";save();renderChart();renderEvents();};
+  if(add)add.onclick=()=>{const y=parseInt(document.getElementById("evYear").value,10),a=parseInt(document.getElementById("evAmt").value,10),note=(document.getElementById("evNote").value||"").trim();
+    if(!y)return; if(!S.events)S.events={};
+    S.events[y]={amt:(isNaN(a)?evAmt(y):a), note:(note||evNote(y))};
+    document.getElementById("evYear").value="";document.getElementById("evAmt").value="";document.getElementById("evNote").value="";
+    save();renderChart();renderEvents();if(typeof renderTimeline==="function")renderTimeline();};
   renderEvents();
 }
 function renderEvents(){
   const box=document.getElementById("eventsBox"); if(!box)return;
-  const ev=S.events||{}, ys=Object.keys(ev).sort();
-  box.innerHTML=ys.length?ys.map(y=>'<div class="evrow"><span style="flex:1">'+y+'年</span><span class="num" style="color:var(--ink)">'+ev[y]+'万</span><span class="x" data-y="'+y+'">✕</span></div>').join(""):'<p class="note" style="margin:0">まだ無し。下で追加（例：2035年に車の買い替え 250万）</p>';
-  box.querySelectorAll(".x").forEach(x=>x.onclick=()=>{delete S.events[x.dataset.y];save();renderChart();renderEvents();});
+  const ys=Object.keys(S.events||{}).sort();
+  box.innerHTML=ys.length?ys.map(y=>'<div class="evrow"><span style="width:50px"><b>'+y+'</b></span><span style="flex:1;color:var(--ink)">'+(evNote(y)||'<span style="color:var(--sub)">特別費</span>')+'</span><span class="num" style="color:var(--ink)">'+(evAmt(y)?evAmt(y)+'万':'—')+'</span><span class="x" data-y="'+y+'">✕</span></div>').join(""):'<p class="note" style="margin:0">まだ無し。下で追加（例：2035年 車の買い替え 250万）</p>';
+  box.querySelectorAll(".x").forEach(x=>x.onclick=()=>{delete S.events[x.dataset.y];save();renderChart();renderEvents();if(typeof renderTimeline==="function")renderTimeline();});
 }
 function renderDetail(){
   const ac=document.getElementById("assetHistCard"), ec=document.getElementById("expHistCard");
@@ -596,7 +616,7 @@ async function fetchRates(){
   let okTd=null;
   if(L.tdKey){ okTd=false; try{ const r=await fetch("https://api.twelvedata.com/price?symbol=SPY&apikey="+encodeURIComponent(L.tdKey)); const j=await r.json(); const spx=parseFloat(j&&j.price);
     if(spx>0){ if(!(+L.spxBase>0)||!(+L.fxBase>0)){L.spxBase=spx;L.fxBase=fx;} L.spxNow=spx;
-      const fb=+L.fundBase||0; if(fb>0){ const v=Math.round(fb*(spx/(+L.spxBase))*(fx/(+L.fxBase))); const a=(S.assets||[]).find(x=>x.name==="投資信託"); if(a&&v>0)a.val=v; }
+      const fb=+L.fundBase||0; if(fb>0){ const v=Math.round(fb*(spx/(+L.spxBase))*(fx/(+L.fxBase))); const a=(S.assets||[]).find(x=>x.name==="米国株投信"); if(a&&v>0)a.val=v; }
       okTd=true; } }catch(e){} }
   try{ const d=new Date(); L.upd=(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }catch(e){}
   save(); renderAll();
@@ -635,20 +655,27 @@ function renderFamily(){
   const add=document.getElementById("famAdd"); if(add)add.onclick=()=>{S.family.push({name:"名前",birth:2020,kid:false});save();renderFamily();renderTimeline();};
 }
 function renderTimeline(){
-  const head=document.getElementById("tlHead"), body=document.getElementById("tlBody"); if(!head||!body)return;
+  const track=document.getElementById("tlTrack"); if(!track)return;
   const fam=(S.family&&S.family.length)?S.family:famDefault();
-  head.innerHTML='<th style="text-align:left">年</th>'+fam.map(m=>'<th>'+(m.name||"")+'</th>').join("")+'<th style="text-align:left">できごと</th>';
   const EDU=[[6,"小学入学"],[12,"中学入学"],[15,"高校入学"],[18,"大学入学"],[22,"大学卒業"]];
-  const ev={}, push=(y,s)=>{if(!y)return;(ev[y]=ev[y]||[]).push(s);};
-  fam.forEach(m=>{ if(m.kid&&m.birth) EDU.forEach(([a,label])=>push(m.birth+a,(m.name||"")+" "+label)); });
+  const ev={}, push=(y,s,cost)=>{if(!y)return;(ev[y]=ev[y]||[]).push({s:s,cost:cost||0});};
+  fam.forEach(m=>{ if(m.kid&&m.birth) EDU.forEach(([a,label])=>push(m.birth+a,(m.name||"").replace(/[（(].*[)）]/,"")+" "+label)); });
   push(2052,"🏠 住宅ローン完済");
   if(+S.hFire) push(+S.hFire,"夫サイドFIRE");
   if(+S.ret) push(+S.ret,"完全リタイア");
+  Object.keys(S.events||{}).forEach(y=>push(+y,(evNote(y)||"特別費"),evAmt(y)));
   const years=[...new Set(Object.keys(ev).map(Number))].filter(y=>y>=START_YEAR).sort((a,b)=>a-b);
-  body.innerHTML=years.length?years.map(y=>{
-    const ages=fam.map(m=>{const a=m.birth?y-m.birth:null;return '<td>'+(a!=null&&a>=0?a:"–")+'</td>';}).join("");
-    return '<tr><td style="text-align:left"><b>'+y+'</b></td>'+ages+'<td style="text-align:left;color:var(--mint)">'+ev[y].join("／")+'</td></tr>';
-  }).join(""):'<tr><td colspan="'+(fam.length+2)+'" style="text-align:left;color:var(--sub)">生年を入れると、これから先のイベントが並ぶよ。</td></tr>';
+  track.innerHTML=years.length?years.map(y=>{
+    const ages=fam.map(m=>{const nm=(m.name||"").replace(/[（(].*[)）]/,"");const a=m.birth?y-m.birth:null;return nm+(a!=null&&a>=0?a:"–");}).join("　");
+    const evts=ev[y].map(e=>'<div class="evt">'+e.s+(e.cost?' <span class="cost">'+e.cost+'万</span>':'')+'</div>').join("");
+    return '<div class="tlcard"><div class="yr">'+y+'</div><div class="ages">'+ages+'</div>'+evts+'</div>';
+  }).join(""):'<p class="note" style="margin:0">生年を入れると、これからのイベントが横に並ぶよ。下から自由に足せる。</p>';
+  const add=document.getElementById("tlAdd");
+  if(add)add.onclick=()=>{const y=parseInt(document.getElementById("tlYear").value,10),a=parseInt(document.getElementById("tlAmt").value,10),note=(document.getElementById("tlNote").value||"").trim();
+    if(!y||(!note&&isNaN(a)))return; if(!S.events)S.events={};
+    S.events[y]={amt:(isNaN(a)?evAmt(y):a),note:(note||evNote(y))};
+    document.getElementById("tlYear").value="";document.getElementById("tlNote").value="";document.getElementById("tlAmt").value="";
+    save();renderTimeline();renderEvents();renderChart();};
 }
 function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();bindLive();renderFamily();renderTimeline();}
 
@@ -707,7 +734,9 @@ document.getElementById("csvFile").addEventListener("change",async(e)=>{
   msg.textContent=parts.length?("読み込んだよ ✓ "+parts.join(" / ")):"対応CSVじゃないかも（マネフォの資産推移か家計簿を試してね）";
   e.target.value="";
 });
-document.getElementById("saveBtn").addEventListener("click",()=>{save();const b=document.getElementById("saveBtn");b.textContent="保存したよ ✓";setTimeout(()=>b.textContent="保存 ✓",1200);});
+function saveNow(btn,label){ save(); if(typeof pushCloud==="function"&&typeof SESSION!=="undefined"&&SESSION)pushCloud(); if(btn){btn.textContent="保存したよ ✓";setTimeout(()=>btn.textContent=label,1400);} }
+document.getElementById("saveBtn").addEventListener("click",()=>saveNow(document.getElementById("saveBtn"),"保存 ✓"));
+{const sb2=document.getElementById("saveBtn2"); if(sb2)sb2.addEventListener("click",()=>saveNow(sb2,"この設定を保存 ✓"));}
 document.getElementById("resetBtn").addEventListener("click",()=>{if(confirm("入力をぜんぶ消してまっさらにする？")){S=JSON.parse(JSON.stringify(DEFAULTS));save();renderAll();}});
 document.getElementById("linkBtn").addEventListener("click",()=>{
   const link=location.origin+location.pathname+"#d="+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
