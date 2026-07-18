@@ -29,6 +29,10 @@
   .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);
     border-radius:22px;padding:20px;margin:0 0 16px;box-shadow:0 20px 40px -24px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.02)}
   .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:0 0 14px;font-weight:600}
+  .tabs{display:flex;gap:6px;margin:0 0 18px;position:sticky;top:0;z-index:20;padding:8px 0;background:var(--bg);flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab{flex:1 1 0;min-width:66px;padding:10px 8px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--sub);font-size:13px;font-family:inherit;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s}
+  .tab.on{background:var(--mint);color:#0a0f16;border-color:var(--mint);font-weight:600}
+  .panel[hidden]{display:none}
   .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
   .heroval{font-size:44px;font-weight:600;line-height:1;letter-spacing:-.01em;
     background:linear-gradient(180deg,#fff,#cfe9df);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -126,6 +130,15 @@
     <span class="acct"><span class="out" id="logoutBtn">ログアウト</span></span>
   </div>
 
+  <nav class="tabs" id="tabs">
+    <button class="tab on" data-p="summary">サマリー</button>
+    <button class="tab" data-p="asset">資産推移</button>
+    <button class="tab" data-p="cash">収支</button>
+    <button class="tab" data-p="record">実録</button>
+  </nav>
+
+  <!-- ▼ サマリー -->
+  <section class="panel" data-p="summary">
   <!-- 現在地 -->
   <div class="card">
     <p class="lbl">Total Assets · いまの総資産</p>
@@ -149,12 +162,19 @@
     <p class="note">金額を書き換えると即反映。マネフォと違って仮想通貨は"現金"に混ぜず独立クラスで集計してるよ。</p>
   </div>
 
-  <!-- 推移 -->
+  <!-- アセット推移 -->
+  <div class="card" id="assetHistCard" style="display:none">
+    <p class="lbl">Asset Trend · アセット推移（資産の中身）</p>
+    <canvas id="assetChart" width="700" height="250" style="width:100%;height:auto"></canvas>
+    <div class="chartlegend" id="assetLegend"></div>
+  </div>
+  </section>
+
+  <!-- ▼ 資産推移（シミュ） -->
+  <section class="panel" data-p="asset" hidden>
   <div class="card">
-    <p class="lbl">Projection · 40年の推移（プラン / シミュ / 実録）</p>
+    <p class="lbl">Projection · 資産推移（プラン / シミュ / 実録）</p>
     <canvas id="chart" width="700" height="310" style="width:100%;height:auto"></canvas>
-    <canvas id="cfchart" width="700" height="140" style="width:100%;height:auto;margin-top:4px"></canvas>
-    <p class="note" style="margin:2px 0 0"><span style="color:#35e0b1">━</span> 収入　<span style="color:#ff7a66">━</span> 支出（年ごと・シミュ）— 支出が収入を上回った年は差額を資産から取り崩し</p>
     <div class="chartlegend">
       <span><i class="ln" style="background:#5b6472"></i>FPプラン</span>
       <span><i class="ln" style="background:#35e0b1"></i>あなたのシミュ</span>
@@ -202,8 +222,23 @@
     </div></details>
     <p class="note">よく動かすのは上（利回り・リタイア年・夫サイドFIRE・生活費・特別費）。収入の内訳や昇給率など"前提"は詳細設定へ。夫の給与は昇給ぶん増えて、サイドFIRE年で消える。緑線が即変化。取り崩しは「収入−支出」がマイナスの年に自動でされるよ。</p>
   </div>
+  </section>
 
-  <!-- 実録 -->
+  <!-- ▼ 収支 -->
+  <section class="panel" data-p="cash" hidden>
+  <div class="card">
+    <p class="lbl">Cashflow · 収支の推移（収入 / 支出）</p>
+    <canvas id="cfchart" width="700" height="200" style="width:100%;height:auto"></canvas>
+    <p class="note" style="margin:6px 0 0"><span style="color:#35e0b1">━</span> 収入　<span style="color:#ff7a66">━</span> 支出（年ごと・シミュ）— 支出が収入を上回った年は、その差額を資産から取り崩し</p>
+  </div>
+  <div class="card" id="expHistCard" style="display:none">
+    <p class="lbl">Breakdown · 収支の内訳（年別・実録）</p>
+    <div id="expBox"></div>
+  </div>
+  </section>
+
+  <!-- ▼ 実録 -->
+  <section class="panel" data-p="record" hidden>
   <div class="card">
     <p class="lbl">Record · 実録（毎年の実際の総資産）</p>
     <input type="file" id="csvFile" accept=".csv,text/csv" multiple style="display:none">
@@ -225,16 +260,7 @@
     </div>
     <p class="foot">自動保存（ログイン中はクラウドにも同期＝PC↔スマホで同じ数字・自分だけ）。CSVはブラウザ内で読むだけ。</p>
   </div>
-
-  <!-- 詳細 -->
-  <div class="card" id="detailCard" style="display:none">
-    <p class="lbl">Details · くわしく（CSVから）</p>
-    <p class="lbl" style="color:var(--sub);margin:6px 0 8px">アセット推移</p>
-    <canvas id="assetChart" width="700" height="250" style="width:100%;height:auto"></canvas>
-    <div class="chartlegend" id="assetLegend"></div>
-    <p class="lbl" style="color:var(--sub);margin:24px 0 10px">収支の内訳（年別）</p>
-    <div id="expBox"></div>
-  </div>
+  </section>
 </div>
 
 <script>
@@ -439,12 +465,13 @@ function renderEvents(){
   box.querySelectorAll(".x").forEach(x=>x.onclick=()=>{delete S.events[x.dataset.y];save();renderChart();renderEvents();});
 }
 function renderDetail(){
-  const dc=document.getElementById("detailCard"); if(!dc)return;
+  const ac=document.getElementById("assetHistCard"), ec=document.getElementById("expHistCard");
   const ah=S.assetHist||{}, eh=S.expHist||{};
   const ahY=Object.keys(ah).filter(y=>{const o=ah[y]||{};return (o.預金+o.株式+o.投信+o.年金+o.ポイント)>=100;}).sort();
   const ehY=Object.keys(eh).sort();
-  if(!ahY.length&&!ehY.length){dc.style.display="none";return;}
-  dc.style.display="block";
+  if(ac)ac.style.display=ahY.length?"block":"none";
+  if(ec)ec.style.display=ehY.length?"block":"none";
+  if(!ahY.length&&!ehY.length)return;
   const CLS=[["預金","#35e0b1"],["投信","#5aa9f0"],["株式","#f6c451"],["年金","#a78bfa"],["ポイント","#fb7185"]];
   const cv=document.getElementById("assetChart"),c=cv.getContext("2d"),W=cv.width,H=cv.height,PL=46,PR=12,PT=12,PB=22;
   c.clearRect(0,0,W,H);
@@ -474,6 +501,14 @@ function renderDetail(){
   }).join("");
 }
 function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();}
+
+/* タブ（画面切替） */
+function showTab(p){
+  document.querySelectorAll(".panel").forEach(s=>{s.hidden=(s.dataset.p!==p);});
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
+  window.scrollTo(0,0);
+}
+document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest(".tab");if(b)showTab(b.dataset.p);});
 
 /* ===== CSV読み込み（マネフォ：資産推移→実録／家計簿→年間貯蓄。ブラウザ内で処理・送信なし） ===== */
 function decodeCSV(buf){ let t=new TextDecoder("utf-8").decode(buf).replace(/^﻿/,""); if(t.indexOf("日付")<0&&t.indexOf("計算対象")<0){try{t=new TextDecoder("shift-jis").decode(buf);}catch(e){}} return t; }
