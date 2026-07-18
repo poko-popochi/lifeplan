@@ -162,6 +162,25 @@
     <p class="note">金額を書き換えると即反映。マネフォと違って仮想通貨は"現金"に混ぜず独立クラスで集計してるよ。</p>
   </div>
 
+  <!-- 相場・為替（自動取得で仮想通貨・外貨保険をいまの評価額に） -->
+  <div class="card">
+    <div class="row" style="margin-bottom:12px"><p class="lbl" style="margin:0">Live · 相場・為替でいまの評価額</p><button class="btn ghost" id="liveBtn" style="padding:6px 12px;font-size:12px">相場を更新</button></div>
+    <p class="note" id="liveMsg" style="margin:0 0 12px">「相場を更新」でBTC/ETH価格・ドル円を取得して、仮想通貨と外貨保険を今の評価額にするよ。</p>
+    <div class="grid2">
+      <div class="legrow"><span>レンディング BTC</span><input type="number" step="0.00000001" id="hvBtc" placeholder="0.0"></div>
+      <div class="legrow"><span>レンディング ETH</span><input type="number" step="0.00000001" id="hvEth" placeholder="0.0"></div>
+    </div>
+    <div class="grid2">
+      <div class="legrow"><span>現物crypto（万）</span><input type="number" id="hvSpot" placeholder="0"></div>
+      <div class="legrow"><span>外貨保険（USD）</span><input type="number" id="hvUsd" placeholder="0"></div>
+    </div>
+    <div class="grid2">
+      <div class="legrow"><span>保険USDの基準年</span><input type="number" id="hvInsYr" placeholder="2026"></div>
+      <div class="legrow"><span>ドル円（手動）</span><input type="number" step="0.01" id="hvFx" placeholder="150"></div>
+    </div>
+    <label class="fpchk"><input type="checkbox" id="hvFxAuto"><span>ドル円も自動で取得する（オフなら手動の値を使う）</span></label>
+  </div>
+
   <!-- アセット推移 -->
   <div class="card" id="assetHistCard" style="display:none">
     <p class="lbl">Asset Trend · アセット推移（資産の中身）</p>
@@ -281,6 +300,8 @@ const DEFAULTS={
   hFire:2050, hFireInc:150,                             // 夫サイドFIRE年・その後の夫収入(side=多少稼ぐ)
   ret:2060, pension:315,                              // 完全リタイア年・年金
   loanOn:true, eduOn:true, salGrow:1.0,
+  // 相場・為替で自動更新する資産（レンディングのBTC/ETH数量・現物crypto万・外貨保険のUSD建て）
+  live:{ btc:0, eth:0, spot:0, insUsd:0, insYr:2026, insGrow:4, fx:150, fxAuto:true, btcJpy:0, ethJpy:0, upd:"" },
   events:{}, actuals:{}, savings:{}, assetHist:{}, expHist:{}
 };
 // FPから抽出：住宅ローン返済（万/年・2052以降0）
@@ -500,7 +521,35 @@ function renderDetail(){
     return '<div style="margin-bottom:20px"><div class="row" style="margin-bottom:8px"><b style="font-size:15px">'+y+'</b><span class="sub">収入 <b style="color:var(--ink)">'+inc+'</b>／支出 <b style="color:var(--ink)">'+exp+'</b>／貯蓄 <b style="color:'+(sav>=0?"#35e0b1":"#ff7a66")+'">'+(sav>=0?"+":"")+sav+'万</b></span></div>'+bars+'</div>';
   }).join("");
 }
-function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();}
+/* ===== 相場・為替でいまの評価額（仮想通貨レンディング・外貨保険） ===== */
+function applyLive(){
+  const L=S.live||{};
+  const insUsdNow=(+L.insUsd||0)*Math.pow(1+(+L.insGrow||0)/100, Math.max(0, START_YEAR-(+L.insYr||START_YEAR)));
+  const cryptoMan=Math.round(((+L.btc||0)*(+L.btcJpy||0)+(+L.eth||0)*(+L.ethJpy||0))/10000)+(+L.spot||0);
+  const insMan=Math.round(insUsdNow*(+L.fx||0)/10000);
+  const set=(name,v)=>{const a=(S.assets||[]).find(x=>x.name===name);if(a&&v>0)a.val=v;};
+  set("仮想通貨",cryptoMan); set("外貨建て保険",insMan);
+}
+async function fetchRates(){
+  const L=S.live||(S.live={}); const msg=document.getElementById("liveMsg");
+  if(msg)msg.textContent="相場を取得中…⏳";
+  let fx=+L.fx||150, okFx=(L.fxAuto===false), okCg=false;
+  if(L.fxAuto!==false){ try{ const r=await fetch("https://open.er-api.com/v6/latest/USD"); const j=await r.json(); if(j&&j.rates&&j.rates.JPY){fx=j.rates.JPY;okFx=true;} }catch(e){} }
+  try{ const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=jpy"); const j=await r.json(); if(j&&j.bitcoin&&j.ethereum){L.btcJpy=j.bitcoin.jpy;L.ethJpy=j.ethereum.jpy;okCg=true;} }catch(e){}
+  L.fx=fx; applyLive();
+  try{ const d=new Date(); L.upd=(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }catch(e){}
+  save(); renderAll();
+  if(msg)msg.innerHTML=(okCg&&okFx?"✓ ":"⚠️ ")+"更新 "+(L.upd||"")+"　1BTC=¥"+fmt(L.btcJpy||0)+"／1ETH=¥"+fmt(L.ethJpy||0)+"／$1="+(+fx).toFixed(2)+"円"+((okCg&&okFx)?"":" <span style='color:#ff7a66'>（一部取得できず・前回値/手動を使用）</span>");
+}
+function bindLive(){
+  const L=S.live||(S.live={});
+  [["hvBtc","btc"],["hvEth","eth"],["hvSpot","spot"],["hvUsd","insUsd"],["hvInsYr","insYr"],["hvFx","fx"]].forEach(([id,k])=>{
+    const el=document.getElementById(id);if(!el)return;el.value=(L[k]||L[k]===0)?L[k]:"";el.oninput=e=>{L[k]=+e.target.value||0;applyLive();save();renderSummary();renderAlloc();renderChart();};});
+  const fa=document.getElementById("hvFxAuto"); if(fa){fa.checked=L.fxAuto!==false;fa.onchange=e=>{L.fxAuto=e.target.checked;save();};}
+  const btn=document.getElementById("liveBtn"); if(btn)btn.onclick=fetchRates;
+  const msg=document.getElementById("liveMsg"); if(msg&&L.upd&&L.btcJpy)msg.innerHTML="前回更新 "+L.upd+"　1BTC=¥"+fmt(L.btcJpy)+"／$1="+(+L.fx).toFixed(2)+"円（「相場を更新」で最新に）";
+}
+function renderAll(){renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();bindLive();}
 
 /* タブ（画面切替） */
 function showTab(p){
@@ -586,6 +635,7 @@ async function loadFromCloud(){
     else if(S&&S.assets&&totalNow()>0){ await pushCloud(); } // 初回：今ある内容（リンクで入れた等）をクラウドへ
   }catch(e){}
   renderAll();
+  const L=S.live||{}; if((+L.btc||+L.eth||+L.insUsd||+L.spot)){ fetchRates(); }  // 保有があれば開いた時に相場を自動反映
 }
 (async function initAuth(){
   const {data:{session}}=await sb.auth.getSession();
