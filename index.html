@@ -223,6 +223,12 @@
         <div class="slider"><label>支出インフレ率（年）<b><span id="infVal"></span>%</b></label><input type="range" id="inflation" min="0" max="5" step="0.1"></div>
         <div class="slider"><label>夫の昇給率（年）<b><span id="sgVal"></span>%</b></label><input type="range" id="salGrow" min="0" max="5" step="0.1"></div>
       </div>
+      <p class="lbl" style="margin:16px 0 6px">資産クラス別の利回り</p>
+      <div class="grid2">
+        <div class="slider"><label>仮想通貨・レンディング<b><span id="crVal"></span>%</b></label><input type="range" id="cryptoRate" min="0" max="15" step="0.5"></div>
+        <div class="slider"><label>外貨保険（USD建て）<b><span id="insVal"></span>%</b></label><input type="range" id="insRate" min="0" max="8" step="0.5"></div>
+      </div>
+      <p class="note" style="margin:2px 0 0">運用利回り（上）は投信・預金など"それ以外"に効く。仮想通貨と外貨保険はここの利回りで別々に伸びるよ。</p>
       <p class="lbl" style="margin:16px 0 6px">収入の内訳</p>
       <div class="grid2">
         <div class="slider"><label>夫の給与 <span class="sub">（今を基準に昇給）</span><b><span id="ihVal"></span></b></label><input type="range" id="incH" min="0" max="1000" step="10"></div>
@@ -317,6 +323,7 @@ const DEFAULTS={
   hFire:2050, hFireInc:150,                             // 夫サイドFIRE年・その後の夫収入(side=多少稼ぐ)
   ret:2060, pension:315,                              // 完全リタイア年・年金
   loanOn:true, eduOn:true, salGrow:1.0,
+  cryptoRate:8, insRate:4,   // 資産クラス別の利回り：仮想通貨/レンディング8%・外貨保険4%(その他はrate)
   // 相場・為替で自動更新する資産（レンディングのBTC/ETH数量・現物crypto万・外貨保険のUSD建て）
   live:{ btc:0, eth:0, spot:0, insUsd:0, insYr:2026, insGrow:4, fx:150, fxAuto:true, btcJpy:0, ethJpy:0, upd:"" },
   // 年表用：家族の生年（編集可）。kid=trueなら小中高大の入学イベントを出す
@@ -379,14 +386,24 @@ function expenseAt(y){
   exp+=(+((S.events||{})[y])||0);
   return exp;
 }
+function assetVal(name){const a=(S.assets||[]).find(x=>x.name===name);return a?(+a.val||0):0;}
+// 資産クラス別に伸ばすシミュ：仮想通貨=cryptoRate％・外貨保険=insRate％・それ以外(投信/預金/年金/株/その他)=rate％。
+// 収支の過不足はまず流動資産(rest)で吸収→マイナスなら仮想通貨→保険 の順に取り崩し。
 function simSeries(){
-  const r=S.rate/100, out={}; let prev=null;
+  const r=S.rate/100, cR=(+S.cryptoRate||0)/100, iR=(+S.insRate||0)/100, out={};
+  let crypto=0, ins=0, rest=0, started=false;
   for(let y=START_YEAR;y<=END_YEAR;y++){
     const act=S.actuals[y];
-    if(act!=null&&act!==""){out[y]=+act;prev=+act;continue;}
-    if(prev===null){out[y]=totalNow();prev=out[y];continue;}
-    const v=prev*(1+r)+(incomeAt(y)-expenseAt(y));
-    out[y]=Math.max(0,Math.round(v));prev=out[y];
+    if(!started){
+      const t=(act!=null&&act!=="")?+act:totalNow();
+      crypto=assetVal("仮想通貨"); ins=assetVal("外貨建て保険"); rest=Math.max(0,t-crypto-ins);
+      out[y]=Math.round(t); started=true; continue;
+    }
+    crypto*=(1+cR); ins*=(1+iR);
+    if(act!=null&&act!==""){ const t=+act; rest=Math.max(0,t-crypto-ins); out[y]=Math.round(t); continue; }
+    rest=rest*(1+r)+(incomeAt(y)-expenseAt(y));
+    if(rest<0){ let d=-rest; rest=0; const fc=Math.min(crypto,d); crypto-=fc; d-=fc; if(d>0){const fi=Math.min(ins,d);ins-=fi;} }
+    out[y]=Math.max(0,Math.round(crypto+ins+rest));
   }
   return out;
 }
@@ -475,7 +492,7 @@ function renderTable(){
   }));
 }
 function bindSliders(){
-  [["rate","rVal",1],["inflation","infVal",1],["salGrow","sgVal",1],["living","livVal",0],
+  [["rate","rVal",1],["inflation","infVal",1],["salGrow","sgVal",1],["cryptoRate","crVal",1],["insRate","insVal",1],["living","livVal",0],
    ["incH","ihVal",0],["incM","imVal",0],["incR","irVal",0],["pension","penVal",0],
    ["incA","iaVal",0],["allowEnd","aeVal",0],["incG","igVal",0],["giftEnd","geVal",0],
    ["hFire","hfVal",0],["hFireInc","hfiVal",0],["ret","retVal",0]
