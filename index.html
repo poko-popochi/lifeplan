@@ -467,17 +467,17 @@ function renderEvents(){
 function renderDetail(){
   const ac=document.getElementById("assetHistCard"), ec=document.getElementById("expHistCard");
   const ah=S.assetHist||{}, eh=S.expHist||{};
-  const ahY=Object.keys(ah).filter(y=>{const o=ah[y]||{};return (o.預金+o.株式+o.投信+o.年金+o.ポイント)>=100;}).sort();
+  const ahY=Object.keys(ah).filter(y=>{const o=ah[y]||{};return ((o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0)+(o.仮想通貨||0))>=100;}).sort();
   const ehY=Object.keys(eh).sort();
   if(ac)ac.style.display=ahY.length?"block":"none";
   if(ec)ec.style.display=ehY.length?"block":"none";
   if(!ahY.length&&!ehY.length)return;
-  const CLS=[["預金","#35e0b1"],["投信","#5aa9f0"],["株式","#f6c451"],["年金","#a78bfa"],["ポイント","#fb7185"]];
+  const CLS=[["預金","#35e0b1"],["投信","#5aa9f0"],["仮想通貨","#f6c451"],["株式","#6b7280"],["年金","#a78bfa"],["ポイント","#fb7185"]];
   const cv=document.getElementById("assetChart"),c=cv.getContext("2d"),W=cv.width,H=cv.height,PL=46,PR=12,PT=12,PB=22;
   c.clearRect(0,0,W,H);
   if(ahY.length){
     const y0=+ahY[0], y1=+ahY[ahY.length-1];
-    let max=0;ahY.forEach(y=>{const o=ah[y];max=Math.max(max,(o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0));});max=Math.ceil(max/1000)*1000||1000;
+    let max=0;ahY.forEach(y=>{const o=ah[y];max=Math.max(max,(o.預金||0)+(o.株式||0)+(o.投信||0)+(o.年金||0)+(o.ポイント||0)+(o.仮想通貨||0));});max=Math.ceil(max/1000)*1000||1000;
     const X=y=>PL+((y1===y0)?0.5:(y-y0)/(y1-y0))*(W-PL-PR), Yv=v=>H-PB-(v/max)*(H-PT-PB);
     c.strokeStyle="#1e2530";c.fillStyle="#5b6472";c.font="10px sans-serif";c.textAlign="right";
     const step=niceStep(max/4);for(let g=0;g<=max+1;g+=step){const yy=Yv(g);c.beginPath();c.moveTo(PL,yy);c.lineTo(W-PR,yy);c.stroke();const o=g/10000;c.fillText((o%1?o.toFixed(1):o)+"億",PL-5,yy+3);}
@@ -528,8 +528,12 @@ function importRows(rows){
   if(!S.assetHist)S.assetHist={}; if(!S.expHist)S.expHist={}; if(!S.savings)S.savings={};
   if(has("合計")&&has("日付")){ const iD=idx("日付"),iT=idx("合計"),iYo=idx("預金"),iKa=idx("株式"),iTo=idx("投資信託"),iNe=idx("年金"),iPo=idx("ポイント"),seen={};
     const g=(R,i)=>i>=0?Math.round((parseInt(String(R[i]).replace(/[,"]/g,""),10)||0)/10000):0;
+    const isCrypto=(iTo<0&&iKa<0);  // 投信も株式も無い＝仮想通貨など単一資産の推移CSV（合計＝その資産額・総資産は上書きしない）
     for(let r=1;r<rows.length;r++){const R=rows[r];if(R.length<=iT)continue;const y=(R[iD]||"").split("/")[0];const v=parseInt(String(R[iT]).replace(/[,"]/g,""),10);if(!y||isNaN(v))continue;
-      if(!(y in seen)){seen[y]=v; S.assetHist[y]={"預金":g(R,iYo),"株式":g(R,iKa),"投信":g(R,iTo),"年金":g(R,iNe),"ポイント":g(R,iPo)};}}
+      if(!(y in seen)){seen[y]=v;
+        if(isCrypto){ if(!S.assetHist[y])S.assetHist[y]={}; S.assetHist[y]["仮想通貨"]=Math.round(v/10000); }
+        else S.assetHist[y]={"預金":g(R,iYo),"株式":g(R,iKa),"投信":g(R,iTo),"年金":g(R,iNe),"ポイント":g(R,iPo)}; }}
+    if(isCrypto) return {type:"仮想通貨推移",n:Object.keys(seen).length};
     let n=0;for(const y in seen){if(y!=="2026"){S.actuals[y]=Math.round(seen[y]/10000);n++;}} return {type:"資産推移",n}; }
   if(has("計算対象")&&has("金額")&&has("大項目")){ const iTgt=idx("計算対象"),iAmt=idx("金額"),iMaj=idx("大項目"),iMid=idx("中項目"),iTr=idx("振替"),iD=idx("日付"),EX={"現金・カード":1,"未分類":1},BIZ={"立替":1,"事業経費":1,"ぽぽち":1,"ぱぴち":1};
     let inc=0,exp=0,year="",cat={};
