@@ -291,11 +291,6 @@
   <!-- ▼ 年表 -->
   <section class="panel" data-p="timeline" hidden>
   <div class="card">
-    <p class="lbl">Family · 家族の生年（誰が何歳かの元になるよ）</p>
-    <div id="famBox"></div>
-    <p class="note" style="margin-top:8px">生年を直すと年表の年齢・入学の年が変わるよ。子どもは小中高大の入学が自動で出る。</p>
-  </div>
-  <div class="card">
     <p class="lbl">Timeline · 年表（横スクロール →）</p>
     <div id="tlTrack" class="tltrack"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
@@ -305,6 +300,10 @@
       <button class="btn ghost" id="tlAdd" style="white-space:nowrap">＋イベント</button>
     </div>
     <p class="note" style="margin-top:6px">ここで足したイベントは特別費と共通。金額を入れれば支出（グラフ）にも反映。内容だけでも年表に残るよ。</p>
+    <details class="adv"><summary>家族の生年・入学ずらし（年齢のもと・めったに変えない）</summary><div class="inner">
+      <div id="famBox"></div>
+      <p class="note" style="margin-top:8px">生年を直すと年表の年齢・入学の年が変わるよ。子どもは小中高大の入学が自動で出る。子の横の数字＝入学を何年ずらすか（早生まれ・浪人など）。</p>
+    </div></details>
   </div>
   </section>
 
