@@ -254,8 +254,12 @@
         <div class="slider"><label>私（給与＋出張手当）<b><span id="imVal"></span></b></label><input type="range" id="incM" min="0" max="800" step="10"></div>
       </div>
       <div class="grid2">
-        <div class="slider"><label>不動産所得（継続）<b><span id="irVal"></span></b></label><input type="range" id="incR" min="0" max="500" step="5"></div>
+        <div class="slider"><label>不動産所得 <span class="sub">（会社・リタイアまで）</span><b><span id="irVal"></span></b></label><input type="range" id="incR" min="0" max="500" step="5"></div>
         <div class="slider"><label>年金など<span class="sub">（リタイア後・世帯）</span><b><span id="penVal"></span></b></label><input type="range" id="pension" min="0" max="800" step="10"></div>
+      </div>
+      <div class="grid2">
+        <div class="slider"><label>自動車賃貸料 <span class="sub">（会社・リタイアまで）</span><b><span id="carVal"></span></b></label><input type="range" id="incCar" min="0" max="300" step="5"></div>
+        <div class="slider"><label>夫の副業 <span class="sub">（会社・リタイアまで）</span><b><span id="bizVal"></span></b></label><input type="range" id="incBiz" min="0" max="300" step="5"></div>
       </div>
       <div class="grid2">
         <div class="slider"><label>子ども手当 <span class="sub">〜<span id="aeVal"></span></span><b><span id="iaVal"></span></b></label><input type="range" id="incA" min="0" max="200" step="5"><input type="range" id="allowEnd" min="2026" max="2045" step="1" style="margin-top:8px"></div>
@@ -345,6 +349,7 @@ const DEFAULTS={
   ],
   rate:5.0, inflation:2.0, living:550,
   incH:365, incM:252, incR:63, incA:50, incG:158,   // 夫給与/私/不動産/手当/贈与（万）
+  incCar:84, incBiz:84,                               // 自動車賃貸料・夫の副業（会社から・私のリタイアで終了）
   allowEnd:2035, giftEnd:2092,                        // 手当の終了年・贈与はずっと(相続想定)
   hFire:2050, hFireInc:150,                             // 夫サイドFIRE年・その後の夫収入(side=多少稼ぐ)
   ret:2060, pension:315,                              // 完全リタイア年・年金
@@ -399,6 +404,7 @@ function incomeAt(y){
   inc += (y<(+S.ret) ? (y<(+S.hFire) ? (+S.incH||0)*salG : (+S.hFireInc||0)) : 0);  // 夫：昇給→サイドFIRE後は副業収入→完全リタイアで終了
   inc += (y<(+S.ret) ? (+S.incM||0) : 0);                    // 私：完全リタイアまで継続
   inc += (y<(+S.ret) ? (+S.incR||0) : 0);                    // 不動産：私の会社払い→私の完全リタイアで終了
+  inc += (y<(+S.ret) ? ((+S.incCar||0)+(+S.incBiz||0)) : 0); // 自動車賃貸料・夫の副業（会社払い）→私のリタイアで終了
   inc += (y<=(+S.allowEnd) ? (+S.incA||0) : 0);              // 子ども手当：終了年まで
   inc += (y<=(+S.giftEnd) ? (+S.incG||0) : 0);               // 贈与：終了年まで
   inc += (y>=(+S.ret) ? (+S.pension||0) : 0);                // 年金：完全リタイアから
@@ -530,13 +536,13 @@ function renderTable(){
 }
 function bindSliders(){
   [["rate","rVal",1],["inflation","infVal",1],["salGrow","sgVal",1],["cryptoRate","crVal",1],["spotRate","sprVal",1],["insRate","insVal",1],["cashRate","ckVal",1],["living","livVal",0],
-   ["incH","ihVal",0],["incM","imVal",0],["incR","irVal",0],["pension","penVal",0],
+   ["incH","ihVal",0],["incM","imVal",0],["incR","irVal",0],["pension","penVal",0],["incCar","carVal",0],["incBiz","bizVal",0],
    ["incA","iaVal",0],["allowEnd","aeVal",0],["incG","igVal",0],["giftEnd","geVal",0],
    ["hFire","hfVal",0],["hFireInc","hfiVal",0],["ret","retVal",0]
   ].forEach(([id,lab,dec])=>{
     const el=document.getElementById(id); if(!el)return; el.value=S[id];
     const lb=document.getElementById(lab);
-    const MONEY=new Set(["living","incH","incM","incR","pension","incA","incG","hFireInc"]);
+    const MONEY=new Set(["living","incH","incM","incR","pension","incA","incG","hFireInc","incCar","incBiz"]);
     const show=v=>{ if(!lb)return;
       if(id==="giftEnd"&&+v>=END_YEAR){lb.textContent="ずっと";return;}
       if(id==="allowEnd"||id==="giftEnd"){lb.textContent=(+v).toFixed(0)+"年";return;}
