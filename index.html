@@ -201,7 +201,7 @@
       <span><i class="ln" style="background:#f6c451"></i>実録</span>
     </div>
     <div class="grid2">
-      <div class="slider"><label>運用利回り（年）<b><span id="rVal"></span>%</b></label><input type="range" id="rate" min="0" max="10" step="0.1"></div>
+      <div class="slider"><label>運用利回り <span class="sub">（投信・年金など）</span><b><span id="rVal"></span>%</b></label><input type="range" id="rate" min="0" max="10" step="0.1"></div>
       <div class="slider"><label>完全リタイア年 <span class="sub">（私も収入→年金へ）</span><b><span id="retVal"></span></b></label><input type="range" id="ret" min="2035" max="2075" step="1"></div>
     </div>
     <div class="grid2">
@@ -228,8 +228,11 @@
         <div class="slider"><label>レンディング（貸出）<b><span id="crVal"></span>%</b></label><input type="range" id="cryptoRate" min="0" max="15" step="0.5"></div>
         <div class="slider"><label>現物crypto <span class="sub">（GMO等・積立のみ）</span><b><span id="sprVal"></span>%</b></label><input type="range" id="spotRate" min="0" max="15" step="0.5"></div>
       </div>
-      <div class="slider"><label>外貨保険（USD建て）<b><span id="insVal"></span>%</b></label><input type="range" id="insRate" min="0" max="8" step="0.5"></div>
-      <p class="note" style="margin:6px 0 0">運用利回り（上）は投信・預金など"それ以外"に効く。レンディングは8%運用、現物crypto（GMO積立）は運用してないので既定0%、外貨保険は4%、で別々に伸ばすよ。</p>
+      <div class="grid2">
+        <div class="slider"><label>外貨保険（USD建て）<b><span id="insVal"></span>%</b></label><input type="range" id="insRate" min="0" max="8" step="0.5"></div>
+        <div class="slider"><label>預金・現金 <span class="sub">（ふつうは0%）</span><b><span id="ckVal"></span>%</b></label><input type="range" id="cashRate" min="0" max="3" step="0.1"></div>
+      </div>
+      <p class="note" style="margin:6px 0 0">運用利回り（上）は投信・年金など"投資ぶん"に効く。預金・現金は別で既定0%（増えない）、レンディング8%、現物crypto（GMO積立）0%、外貨保険4%、で別々に伸ばすよ。だから運用利回りは"投資だけ"の数字にできる（7%とか）。</p>
       <p class="lbl" style="margin:16px 0 6px">収入の内訳</p>
       <div class="grid2">
         <div class="slider"><label>夫の給与 <span class="sub">（今を基準に昇給）</span><b><span id="ihVal"></span></b></label><input type="range" id="incH" min="0" max="1000" step="10"></div>
@@ -324,7 +327,7 @@ const DEFAULTS={
   hFire:2050, hFireInc:150,                             // 夫サイドFIRE年・その後の夫収入(side=多少稼ぐ)
   ret:2060, pension:315,                              // 完全リタイア年・年金
   loanOn:true, eduOn:true, salGrow:1.0,
-  cryptoRate:8, spotRate:0, insRate:4,   // クラス別利回り：レンディング8%・現物crypto(GMO積立)0%・外貨保険4%(その他はrate)
+  cryptoRate:8, spotRate:0, insRate:4, cashRate:0,   // クラス別利回り：レンディング8%・現物crypto0%・外貨保険4%・預金現金0%(投信/年金/その他はrate)
   // 相場・為替で自動更新する資産（レンディングのBTC/ETH数量・現物crypto万・外貨保険のUSD建て）
   live:{ btc:0, eth:0, spot:0, insUsd:0, insYr:2026, insGrow:4, fx:150, fxAuto:true, btcJpy:0, ethJpy:0, upd:"" },
   // 年表用：家族の生年（編集可）。kid=trueなら小中高大の入学イベントを出す
@@ -391,21 +394,27 @@ function assetVal(name){const a=(S.assets||[]).find(x=>x.name===name);return a?(
 // 資産クラス別に伸ばすシミュ：レンディング=cryptoRate％・現物crypto=spotRate％・外貨保険=insRate％・それ以外(投信/預金/年金/株/その他)=rate％。
 // 過不足はまず流動資産(rest)で吸収→マイナスなら レンディング→現物→保険 の順に取り崩し。
 function simSeries(){
-  const r=S.rate/100, cR=(+S.cryptoRate||0)/100, sR=(+S.spotRate||0)/100, iR=(+S.insRate||0)/100, out={};
-  let spot=0, lend=0, ins=0, rest=0, started=false;
+  const r=S.rate/100, cR=(+S.cryptoRate||0)/100, sR=(+S.spotRate||0)/100, iR=(+S.insRate||0)/100, kR=(+S.cashRate||0)/100, out={};
+  let spot=0, lend=0, ins=0, cash=0, rest=0, started=false;
   for(let y=START_YEAR;y<=END_YEAR;y++){
     const act=S.actuals[y];
     if(!started){
       const t=(act!=null&&act!=="")?+act:totalNow();
       const cryptoTot=assetVal("仮想通貨"); spot=Math.min((+(S.live||{}).spot)||0,cryptoTot); lend=Math.max(0,cryptoTot-spot);
-      ins=assetVal("外貨建て保険"); rest=Math.max(0,t-cryptoTot-ins);
+      ins=assetVal("外貨建て保険"); cash=assetVal("預金・現金"); rest=Math.max(0,t-cryptoTot-ins-cash);
       out[y]=Math.round(t); started=true; continue;
     }
-    spot*=(1+sR); lend*=(1+cR); ins*=(1+iR);
-    if(act!=null&&act!==""){ const t=+act; rest=Math.max(0,t-spot-lend-ins); out[y]=Math.round(t); continue; }
-    rest=rest*(1+r)+(incomeAt(y)-expenseAt(y));
-    if(rest<0){ let d=-rest; rest=0; const fl=Math.min(lend,d);lend-=fl;d-=fl; if(d>0){const fs=Math.min(spot,d);spot-=fs;d-=fs;} if(d>0){const fi=Math.min(ins,d);ins-=fi;} }
-    out[y]=Math.max(0,Math.round(spot+lend+ins+rest));
+    spot*=(1+sR); lend*=(1+cR); ins*=(1+iR); cash*=(1+kR); rest*=(1+r);
+    if(act!=null&&act!==""){ const t=+act; rest=Math.max(0,t-spot-lend-ins-cash); out[y]=Math.round(t); continue; }
+    const net=incomeAt(y)-expenseAt(y);
+    if(net>=0) rest+=net;                                   // 余りは投資(投信等)へ
+    else{ let d=-net;                                       // 不足は 現金→投信→レンディング→現物→保険 の順に取り崩し
+      const fk=Math.min(cash,d);cash-=fk;d-=fk;
+      if(d>0){const fr=Math.min(rest,d);rest-=fr;d-=fr;}
+      if(d>0){const fl=Math.min(lend,d);lend-=fl;d-=fl;}
+      if(d>0){const fs=Math.min(spot,d);spot-=fs;d-=fs;}
+      if(d>0){const fi=Math.min(ins,d);ins-=fi;} }
+    out[y]=Math.max(0,Math.round(spot+lend+ins+cash+rest));
   }
   return out;
 }
@@ -494,7 +503,7 @@ function renderTable(){
   }));
 }
 function bindSliders(){
-  [["rate","rVal",1],["inflation","infVal",1],["salGrow","sgVal",1],["cryptoRate","crVal",1],["spotRate","sprVal",1],["insRate","insVal",1],["living","livVal",0],
+  [["rate","rVal",1],["inflation","infVal",1],["salGrow","sgVal",1],["cryptoRate","crVal",1],["spotRate","sprVal",1],["insRate","insVal",1],["cashRate","ckVal",1],["living","livVal",0],
    ["incH","ihVal",0],["incM","imVal",0],["incR","irVal",0],["pension","penVal",0],
    ["incA","iaVal",0],["allowEnd","aeVal",0],["incG","igVal",0],["giftEnd","geVal",0],
    ["hFire","hfVal",0],["hFireInc","hfiVal",0],["ret","retVal",0]
