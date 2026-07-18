@@ -398,7 +398,7 @@ function incomeAt(y){
   const salG=Math.pow(1+(+S.salGrow||0)/100, Math.max(0,y-START_YEAR));  // 夫の昇給（今の給与を基準に毎年）
   inc += (y<(+S.ret) ? (y<(+S.hFire) ? (+S.incH||0)*salG : (+S.hFireInc||0)) : 0);  // 夫：昇給→サイドFIRE後は副業収入→完全リタイアで終了
   inc += (y<(+S.ret) ? (+S.incM||0) : 0);                    // 私：完全リタイアまで継続
-  inc += (+S.incR||0);                                       // 不動産：継続
+  inc += (y<(+S.ret) ? (+S.incR||0) : 0);                    // 不動産：私の会社払い→私の完全リタイアで終了
   inc += (y<=(+S.allowEnd) ? (+S.incA||0) : 0);              // 子ども手当：終了年まで
   inc += (y<=(+S.giftEnd) ? (+S.incG||0) : 0);               // 贈与：終了年まで
   inc += (y>=(+S.ret) ? (+S.pension||0) : 0);                // 年金：完全リタイアから
