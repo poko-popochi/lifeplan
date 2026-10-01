@@ -30,7 +30,7 @@
     border-radius:22px;padding:20px;margin:0 0 16px;box-shadow:0 20px 40px -24px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.02)}
   .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:0 0 14px;font-weight:600}
   .tabs{display:flex;gap:6px;margin:0 0 18px;position:sticky;top:0;z-index:20;padding:8px 0;background:var(--bg);flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .tab{flex:1 1 0;min-width:66px;padding:10px 8px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--sub);font-size:13px;font-family:inherit;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s}
+  .tab{flex:1 1 auto;min-width:0;padding:10px 7px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--sub);font-size:13px;font-family:inherit;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s}
   .tab.on{background:var(--mint);color:#0a0f16;border-color:var(--mint);font-weight:600}
   .panel[hidden]{display:none}
   .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -88,6 +88,16 @@
   .ln{width:16px;height:3px;border-radius:2px;display:inline-block}
   .rng{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
   .rng button{padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--sub);font-size:12.5px;font-family:inherit;cursor:pointer}
+  .cxrow{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .cxrow:last-child{border-bottom:none}
+  .cxrow .t{display:flex;align-items:baseline;gap:10px;font-size:15px}
+  .cxrow .nm{flex:1;color:var(--ink)}
+  .cxrow .v{color:var(--ink)}
+  .cxrow .c{width:56px;text-align:right;font-size:12.5px}
+  .cxrow .q{color:var(--sub);font-size:12px;margin-top:3px}
+  .legrow input[data-cx]{font-size:16px;width:132px}   /* iOSで入力時に画面が拡大しないように16px */
+  .cxlive{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .cxtick{font-size:30px;font-weight:600;color:var(--mint)}
   .cinfo{min-height:44px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:13.5px;color:var(--sub);margin:0 0 8px;line-height:1.5}
   .cinfo .y{color:var(--ink);font-size:15px}
   .cinfo b{color:var(--ink);font-weight:600}
@@ -147,6 +157,7 @@
 
   <nav class="tabs" id="tabs">
     <button class="tab on" data-p="summary">サマリー</button>
+    <button class="tab" data-p="crypto">暗号資産</button>
     <button class="tab" data-p="asset">資産推移</button>
     <button class="tab" data-p="cash">収支</button>
     <button class="tab" data-p="timeline">年表</button>
@@ -209,6 +220,48 @@
     <p class="lbl">Asset Trend · アセット推移（資産の中身）</p>
     <canvas id="assetChart" style="width:100%"></canvas>
     <div class="chartlegend" id="assetLegend"></div>
+  </div>
+  </section>
+
+  <!-- ▼ 暗号資産（ここだけ切り取って・相場でリアルタイム） -->
+  <section class="panel" data-p="crypto" hidden>
+  <div class="card">
+    <div class="row" style="margin-bottom:12px"><p class="lbl" style="margin:0">Crypto · 暗号資産（いま）</p><span class="sub" id="cxUpd"></span></div>
+    <div><span class="heroval num" id="cxTotal" style="font-size:38px">–</span><span class="unit">円</span></div>
+    <div class="mt"><span class="pill up num" id="cxChg" style="display:none"></span></div>
+    <div id="cxRows" class="mt"></div>
+    <div class="cxlive">
+      <p class="lbl" style="margin:0 0 6px">レンディングで増えてる分</p>
+      <div><span class="num cxtick" id="cxToday">+0</span><span class="unit">円 今日</span></div>
+      <div class="sub mt" id="cxLendSum"></div>
+    </div>
+    <p class="note" id="cxMsg" style="margin:10px 0 0">開いている間は1分ごとに相場を取り直すよ。</p>
+  </div>
+
+  <div class="card">
+    <p class="lbl">Forecast · これから増える分（積立＋利息）</p>
+    <div class="rng cxr" id="cxRng"></div>
+    <div class="cinfo num" id="cxInfo"></div>
+    <canvas id="cxChart" style="width:100%"></canvas>
+    <div class="chartlegend">
+      <span><i class="ln" style="background:#f6c451"></i>積立で買った分</span>
+      <span><i class="ln" style="background:#35e0b1"></i>レンディングの利息</span>
+    </div>
+    <div class="slider"><label>値段の伸び（年） <span class="sub">（0%＝いまの値段のまま）</span><b><span id="cxGrowVal"></span>%</b></label><input type="range" id="cxGrow" min="-30" max="50" step="5"></div>
+  </div>
+
+  <div class="card">
+    <p class="lbl">Holdings · 持っている数と毎月の積立</p>
+      <div class="legrow"><span class="nm">レンディング BTC</span><input type="number" step="0.00000001" class="num" data-cx="lendBtc" placeholder="0.0"></div>
+      <div class="legrow"><span class="nm">レンディング ETH</span><input type="number" step="0.00000001" class="num" data-cx="lendEth" placeholder="0.0"></div>
+      <div class="legrow"><span class="nm">現物 BTC</span><input type="number" step="0.00000001" class="num" data-cx="spotBtc" placeholder="0.0"></div>
+      <div class="legrow"><span class="nm">現物 SOL</span><input type="number" step="0.0001" class="num" data-cx="sol" placeholder="0.0"></div>
+      <div class="legrow"><span class="nm">毎月のBTC積立（円）</span><input type="number" class="num" data-cx="buyBtc" placeholder="0"></div>
+      <div class="legrow"><span class="nm">毎月のSOL積立（円）</span><input type="number" class="num" data-cx="buySol" placeholder="0"></div>
+      <div class="legrow"><span class="nm">レンディング利回り BTC（%）</span><input type="number" step="0.1" class="num" data-cx="rateBtc" placeholder="0"></div>
+      <div class="legrow"><span class="nm">レンディング利回り ETH（%）</span><input type="number" step="0.1" class="num" data-cx="rateEth" placeholder="0"></div>
+    <label class="fpchk"><input type="checkbox" id="cxReLend"><span>積立で買ったBTCもレンディングに回す</span></label>
+    <p class="note">レンディングBTC/ETHはサマリーの「相場・為替」と同じ数字（どっちで直してもOK）。現物BTC・SOLを入れると、サマリーの「現物crypto（万）」は自動でこの数×いまの値段になるよ。</p>
   </div>
   </section>
 
@@ -513,7 +566,7 @@ const RNG_KEY="poko_lifeplan_rng";
 let RNG=(function(){try{return localStorage.getItem(RNG_KEY)||"10";}catch(e){return "10";}})();
 function rangeEnd(){return RNG==="all"?END_YEAR:Math.min(END_YEAR,START_YEAR+(+RNG));}
 function renderRng(){
-  document.querySelectorAll(".rng").forEach(box=>{
+  document.querySelectorAll(".rng:not(.cxr)").forEach(box=>{
     box.innerHTML=[["10","10年後まで"],["30","30年後まで"],["all","ぜんぶ"]].map(([k,l])=>'<button data-k="'+k+'" class="'+(RNG===k?"on":"")+'">'+l+'</button>').join("");
     box.querySelectorAll("button").forEach(b=>b.onclick=()=>{RNG=b.dataset.k;try{localStorage.setItem(RNG_KEY,RNG);}catch(e){}CHART_SEL=null;renderRng();renderChart();});
   });
@@ -709,6 +762,8 @@ function renderDetail(){
 /* ===== 相場・為替でいまの評価額（仮想通貨レンディング・外貨保険） ===== */
 function applyLive(){
   const L=S.live||{};
+  const C=S.crypto||{};   // 暗号資産タブで現物の数量が入っていれば、現物crypto（万）は 数量×いまの値段
+  if(((+C.spotBtc||0)>0||(+C.sol||0)>0)&&(+L.btcJpy||0)>0) L.spot=Math.round(((+C.spotBtc||0)*(+L.btcJpy)+(+C.sol||0)*(+L.solJpy||0))/10000);
   const insUsdNow=(+L.insUsd||0)*Math.pow(1+(+L.insGrow||0)/100, Math.max(0, START_YEAR-(+L.insYr||START_YEAR)));
   const cryptoMan=Math.round(((+L.btc||0)*(+L.btcJpy||0)+(+L.eth||0)*(+L.ethJpy||0))/10000)+(+L.spot||0);
   const insMan=Math.round(insUsdNow*(+L.fx||0)/10000);
@@ -723,7 +778,7 @@ async function fetchRates(){
   if(msg)msg.textContent="相場を取得中…⏳";
   let fx=+L.fx||150, okFx=(L.fxAuto===false), okCg=false;
   if(L.fxAuto!==false){ try{ const r=await fetch("https://open.er-api.com/v6/latest/USD"); const j=await r.json(); if(j&&j.rates&&j.rates.JPY){fx=j.rates.JPY;okFx=true;} }catch(e){} }
-  try{ const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=jpy"); const j=await r.json(); if(j&&j.bitcoin&&j.ethereum){L.btcJpy=j.bitcoin.jpy;L.ethJpy=j.ethereum.jpy;okCg=true;} }catch(e){}
+  try{ const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=jpy&include_24hr_change=true"); const j=await r.json(); if(j&&j.bitcoin&&j.ethereum){L.btcJpy=j.bitcoin.jpy;L.ethJpy=j.ethereum.jpy;L.btcChg=j.bitcoin.jpy_24h_change;L.ethChg=j.ethereum.jpy_24h_change;if(j.solana){L.solJpy=j.solana.jpy;L.solChg=j.solana.jpy_24h_change;}CX_AT=Date.now();okCg=true;} }catch(e){}
   L.fx=fx; applyLive();
   // 投信＝S&P500(SPY)×ドル円 の指数連動でベース額をスケール（なんとなく合わせる）
   let okTd=null;
@@ -739,11 +794,142 @@ function bindLive(){
   const L=S.live||(S.live={});
   [["hvBtc","btc"],["hvEth","eth"],["hvSpot","spot"],["hvUsd","insUsd"],["hvInsYr","insYr"],["hvFx","fx"]].forEach(([id,k])=>{
     const el=document.getElementById(id);if(!el)return;el.value=(L[k]||L[k]===0)?L[k]:"";el.oninput=e=>{L[k]=+e.target.value||0;applyLive();save();renderSummary();renderAlloc();renderChart();};});
+  const spAuto=((+(S.crypto||{}).spotBtc||0)>0||(+(S.crypto||{}).sol||0)>0), hs=document.getElementById("hvSpot");
+  if(hs){hs.disabled=spAuto;if(spAuto){hs.value=L.spot||0;hs.title="暗号資産タブの数量から自動";}}
   const fa=document.getElementById("hvFxAuto"); if(fa){fa.checked=L.fxAuto!==false;fa.onchange=e=>{L.fxAuto=e.target.checked;save();};}
   const fund=document.getElementById("hvFund"); if(fund){fund.value=(L.fundBase||L.fundBase===0)?L.fundBase:"";fund.oninput=e=>{L.fundBase=+e.target.value||0;L.spxBase=0;L.fxBase=0;save();};}
   const td=document.getElementById("hvTd"); if(td){td.value=L.tdKey||"";td.oninput=e=>{L.tdKey=(e.target.value||"").trim();save();};}
   const btn=document.getElementById("liveBtn"); if(btn)btn.onclick=fetchRates;
   const msg=document.getElementById("liveMsg"); if(msg&&L.upd&&L.btcJpy)msg.innerHTML="前回更新 "+L.upd+"　1BTC=¥"+fmt(L.btcJpy)+"／$1="+(+L.fx).toFixed(2)+"円（「相場を更新」で最新に）";
+}
+/* ===== 暗号資産タブ（BTC/ETH/SOLを数量×いまの値段で・レンディング利息と毎月の積立の見通し） ===== */
+function CX(){ if(!S.crypto)S.crypto={}; const C=S.crypto;
+  ["spotBtc","sol","buyBtc","buySol"].forEach(k=>{if(C[k]==null)C[k]=0;});
+  if(C.rateBtc==null)C.rateBtc=+S.cryptoRate||0; if(C.rateEth==null)C.rateEth=+S.cryptoRate||0;
+  if(C.grow==null)C.grow=0; return C; }
+function yen(v){return Math.round(v).toLocaleString();}
+function yenShort(v){const a=Math.abs(v);return a>=1e8?(v/1e8).toFixed(a>=1e9?0:1).replace(/\.0$/,"")+"億":a>=1e4?fmt(v/1e4)+"万":fmt(v);}
+function cxPrices(){const L=S.live||{};return {btc:+L.btcJpy||0,eth:+L.ethJpy||0,sol:+L.solJpy||0};}
+// レンディング利息（円/年・いまの値段で）
+function cxLendYear(){const C=CX(),L=S.live||{},p=cxPrices();
+  return (+L.btc||0)*p.btc*(+C.rateBtc||0)/100+(+L.eth||0)*p.eth*(+C.rateEth||0)/100;}
+// 相場だけ取り直す（開いている間の自動更新用。保存はしない＝他の端末の編集を上書きしない）
+async function fetchCx(){
+  const L=S.live||(S.live={}); const msg=document.getElementById("cxMsg");
+  try{ const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=jpy&include_24hr_change=true"); const j=await r.json();
+    if(j&&j.bitcoin){ L.btcJpy=j.bitcoin.jpy; L.btcChg=j.bitcoin.jpy_24h_change;
+      if(j.ethereum){L.ethJpy=j.ethereum.jpy;L.ethChg=j.ethereum.jpy_24h_change;}
+      if(j.solana){L.solJpy=j.solana.jpy;L.solChg=j.solana.jpy_24h_change;}
+      CX_AT=Date.now(); applyLive(); if(msg)msg.textContent="開いている間は1分ごとに相場を取り直すよ。";
+    } else if(msg) msg.textContent="相場が取れなかった（混んでるかも）。1分後にもう一度とるね。";
+  }catch(e){ if(msg)msg.textContent="相場が取れなかった（通信）。1分後にもう一度とるね。"; }
+  renderCrypto();
+}
+let CX_AT=0, CX_POLL=null, CX_TICK=null, CX_SEL=null, CX_GEOM=null;
+const CXR_KEY="poko_lifeplan_cxr";
+let CXR=(function(){try{return localStorage.getItem(CXR_KEY)||"12";}catch(e){return "12";}})();
+function cxStart(){
+  cxStop();
+  if(Date.now()-CX_AT>55000) fetchCx(); else renderCrypto();
+  CX_POLL=setInterval(()=>{ if(!document.hidden) fetchCx(); },60000);
+  CX_TICK=setInterval(cxTick,250);
+}
+function cxStop(){ clearInterval(CX_POLL); clearInterval(CX_TICK); CX_POLL=CX_TICK=null; }
+// 今日0時からのレンディング利息を秒で増やして見せる
+function cxTick(){ const el=document.getElementById("cxToday"); if(!el)return;
+  const d=new Date(), sec=d.getHours()*3600+d.getMinutes()*60+d.getSeconds()+d.getMilliseconds()/1000;
+  const v=cxLendYear()/365*sec/86400;
+  el.textContent="+"+v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderCrypto(){
+  if(!document.getElementById("cxRows"))return;
+  const C=CX(),L=S.live||{},p=cxPrices(),has=p.btc>0;
+  const coins=[
+    {nm:"BTC",q:(+L.btc||0)+(+C.spotBtc||0),qs:"レンディング "+(+L.btc||0)+"・現物 "+(+C.spotBtc||0),px:p.btc,chg:L.btcChg},
+    {nm:"ETH",q:+L.eth||0,qs:"レンディング "+(+L.eth||0),px:p.eth,chg:L.ethChg},
+    {nm:"SOL",q:+C.sol||0,qs:"現物 "+(+C.sol||0),px:p.sol,chg:L.solChg}];
+  let tot=0,d24=0;
+  coins.forEach(c=>{c.v=c.q*c.px;tot+=c.v;if(c.chg!=null&&isFinite(c.chg))d24+=c.v-c.v/(1+c.chg/100);});
+  document.getElementById("cxTotal").textContent=has?yen(tot):"–";
+  const pill=document.getElementById("cxChg");
+  if(has&&tot>0&&coins.some(c=>c.chg!=null)){const pct=d24/Math.max(1,tot-d24)*100;
+    pill.style.display="";pill.className="pill "+(d24>=0?"up":"down");pill.textContent="24時間で "+(d24>=0?"＋":"−")+yen(Math.abs(d24))+"円（"+(pct>=0?"+":"")+pct.toFixed(1)+"%）";}
+  else pill.style.display="none";
+  document.getElementById("cxRows").innerHTML=coins.filter(c=>c.q>0).map(c=>
+    '<div class="cxrow num"><div class="t"><span class="nm">'+c.nm+'</span><span class="v">¥'+(c.px?yen(c.v):"–")+'</span>'
+    +'<span class="c" style="color:'+((c.chg||0)>=0?"#35e0b1":"#ff7a66")+'">'+(c.chg!=null?((c.chg>=0?"+":"")+(+c.chg).toFixed(1)+"%"):"")+'</span></div>'
+    +'<div class="q">'+c.qs+(c.px?'　1'+c.nm+'＝¥'+yen(c.px):'')+'</div></div>').join("")
+    ||'<p class="note" style="margin:0">下の「持っている数」に数量を入れると、ここに出るよ。</p>';
+  const ly=cxLendYear();
+  document.getElementById("cxLendSum").innerHTML=ly>0?'1か月 <b>+'+yen(ly/12)+'円</b>　1年 <b>+'+yen(ly)+'円</b>（いまの値段で）':'レンディングの数量と利回りを入れると、利息が増えていくのが見えるよ。';
+  document.getElementById("cxUpd").textContent=CX_AT?("更新 "+new Date(CX_AT).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})):"";
+  cxTick(); renderCxChart();
+}
+function renderCxRng(){ const box=document.getElementById("cxRng"); if(!box)return;
+  box.innerHTML=[["12","1年"],["36","3年"],["60","5年"]].map(([k,l])=>'<button data-k="'+k+'" class="'+(CXR===k?"on":"")+'">'+l+'</button>').join("");
+  box.querySelectorAll("button").forEach(b=>b.onclick=()=>{CXR=b.dataset.k;try{localStorage.setItem(CXR_KEY,CXR);}catch(e){}CX_SEL=null;renderCxRng();renderCxChart();}); }
+// 月ごとの見通し：持ち分・積立で買った分・利息（数量で積んで、その月の値段で円にする）
+function cxSeries(M){
+  const C=CX(),L=S.live||{},p=cxPrices(),gy=(+C.grow||0)/100,rb=(+C.rateBtc||0)/100/12,re=(+C.rateEth||0)/100/12;
+  const Lb=+L.btc||0,Le=+L.eth||0,Sb=+C.spotBtc||0,So=+C.sol||0;
+  let Bb=0,Bs=0,Ib=0,Ie=0,paid=0; const out=[];
+  for(let m=0;m<=M;m++){
+    const g=Math.pow(1+gy,m/12), pb=p.btc*g, pe=p.eth*g, ps=p.sol*g;
+    if(m>0){ Ib+=(Lb+Ib+(C.reLend?Bb:0))*rb; Ie+=(Le+Ie)*re;
+      if(pb>0&&+C.buyBtc>0){Bb+=(+C.buyBtc)/pb;paid+=+C.buyBtc;} if(ps>0&&+C.buySol>0){Bs+=(+C.buySol)/ps;paid+=+C.buySol;} }
+    out.push({m:m,base:(Lb+Sb)*pb+Le*pe+So*ps,bought:Bb*pb+Bs*ps,int:Ib*pb+Ie*pe,paid:paid,btcQ:Lb+Sb+Bb+Ib});
+  }
+  return out;
+}
+function renderCxChart(){
+  const cv=document.getElementById("cxChart"); if(!cv)return;
+  const C=CX(), M=+CXR, ser=cxSeries(M), {c,W,H}=fitCanvas(cv,w=>w<520?230:260), PL=50,PR=12,PT=12,PB=26;
+  const gv=document.getElementById("cxGrowVal"), gi=document.getElementById("cxGrow"); if(gv)gv.textContent=(+C.grow||0); if(gi&&document.activeElement!==gi)gi.value=+C.grow||0;
+  const info=document.getElementById("cxInfo");
+  if(!(cxPrices().btc>0)){info.innerHTML='<span>相場を取りに行ってるところ…</span>';CX_GEOM=null;return;}
+  let raw=0; ser.forEach(o=>raw=Math.max(raw,o.bought+o.int)); raw=raw||10000;
+  const step=niceStep(raw/4), max=Math.ceil(raw*1.04/step)*step;
+  const x=m=>PL+m/M*(W-PL-PR), yv=v=>H-PB-(v/max)*(H-PT-PB);
+  c.lineWidth=1;c.strokeStyle="#1e2530";c.fillStyle="#8b95a6";c.font="11.5px "+FONT;c.textAlign="right";
+  for(let g=0;g<=max+1;g+=step){const yy=yv(g);c.beginPath();c.moveTo(PL,yy);c.lineTo(W-PR,yy);c.stroke();c.fillText(g===0?"0":yenShort(g),PL-7,yy+4);}
+  c.textAlign="center";
+  const tk=M<=12?[0,3,6,9,12]:Array.from({length:M/12+1},(_,i)=>i*12);
+  tk.forEach(m=>c.fillText(m===0?"今":(m%12?m+"か月":(m/12)+"年"),x(m),H-8));
+  // いまの持ち分は大きすぎて動きが見えないので、増える分（積立→利息）だけを積み上げる
+  const layers=[["bought","#f6c451"],["int","#35e0b1"]];
+  const cum=ser.map(()=>0);
+  layers.forEach(([k,col])=>{
+    c.fillStyle=col+"bb";c.beginPath();
+    ser.forEach((o,i)=>{const px=x(o.m),py=yv(cum[i]+o[k]);if(i===0)c.moveTo(px,py);else c.lineTo(px,py);});
+    for(let i=ser.length-1;i>=0;i--)c.lineTo(x(ser[i].m),yv(cum[i]));
+    c.closePath();c.fill(); ser.forEach((o,i)=>cum[i]+=o[k]);
+  });
+  c.strokeStyle="#eef1f6";c.lineWidth=1.5;c.beginPath();ser.forEach((o,i)=>{const px=x(o.m),py=yv(cum[i]);if(i===0)c.moveTo(px,py);else c.lineTo(px,py);});c.stroke();
+  CX_GEOM={M:M,PL:PL,PR:PR,W:W};
+  const sm=(CX_SEL!=null&&CX_SEL<=M)?CX_SEL:M, o=ser[sm];
+  if(CX_SEL!=null&&CX_SEL<=M){const px=x(sm);c.strokeStyle="rgba(238,241,246,.4)";c.lineWidth=1;c.beginPath();c.moveTo(px,PT);c.lineTo(px,H-PB);c.stroke();
+    c.fillStyle="#eef1f6";c.beginPath();c.arc(px,yv(o.bought+o.int),4.5,0,7);c.fill();}
+  const d=new Date(); d.setMonth(d.getMonth()+sm);
+  info.innerHTML='<span class="y">'+(sm===0?"いま":(sm%12?sm+"か月後":(sm/12)+"年後"))+'（'+d.getFullYear()+'年'+(d.getMonth()+1)+'月）</span>'
+    +'<span>暗号資産ぜんぶで <b>¥'+yen(o.base+o.bought+o.int)+'</b></span>'
+    +'<span>積立 <b style="color:#f6c451">¥'+yen(o.bought)+'</b>（入れたお金 ¥'+yen(o.paid)+'）</span>'
+    +'<span>利息 <b style="color:#35e0b1">+¥'+yen(o.int)+'</b></span>'
+    +'<span>BTC <b>'+o.btcQ.toFixed(5)+'</b></span>';
+}
+function bindCrypto(){
+  const C=CX(),L=S.live||(S.live={});
+  document.querySelectorAll("[data-cx]").forEach(el=>{const k=el.dataset.cx;
+    const get=()=>k==="lendBtc"?L.btc:k==="lendEth"?L.eth:C[k];
+    const v=get(); el.value=(v||v===0)&&v!==0?v:"";
+    el.oninput=e=>{const n=+e.target.value||0; if(k==="lendBtc")L.btc=n; else if(k==="lendEth")L.eth=n; else C[k]=n;
+      applyLive();save();renderCrypto();renderSummary();renderAlloc();bindLive();};});
+  const rl=document.getElementById("cxReLend"); if(rl){rl.checked=!!C.reLend;rl.onchange=e=>{C.reLend=e.target.checked;save();renderCxChart();};}
+  const gi=document.getElementById("cxGrow"); if(gi){gi.value=+C.grow||0;gi.oninput=e=>{C.grow=+e.target.value;save();renderCxChart();};}
+  renderCxRng();
+  const cv=document.getElementById("cxChart");
+  if(cv&&!cv._bound){cv._bound=true;cv.style.touchAction="pan-y";
+    const pick=e=>{if(!CX_GEOM)return;const r=cv.getBoundingClientRect(),cx=e.clientX-r.left,{M,PL,PR,W}=CX_GEOM;
+      let m=Math.round((cx-PL)/(W-PL-PR)*M);m=Math.max(0,Math.min(M,m));CX_SEL=(CX_SEL===m&&e.type==="pointerdown")?null:m;renderCxChart();};
+    cv.addEventListener("pointerdown",pick);cv.addEventListener("pointermove",e=>{if(e.buttons)pick(e);});}
 }
 /* ===== 年表（家族の年齢＋ライフイベント） ===== */
 function famDefault(){ return [
@@ -809,16 +995,17 @@ function renderTimeline(){
     document.getElementById("tlYear").value="";document.getElementById("tlNote").value="";document.getElementById("tlAmt").value="";
     save();renderTimeline();renderEvents();renderChart();};
 }
-function renderAll(){renderRng();renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();bindLive();renderFamily();renderTimeline();}
+function renderAll(){renderRng();bindCrypto();renderCrypto();renderSummary();renderAlloc();renderChart();renderTable();bindSliders();renderSavings();renderDetail();bindLive();renderFamily();renderTimeline();}
 
 /* タブ（画面切替） */
 function showTab(p){
   document.querySelectorAll(".panel").forEach(s=>{s.hidden=(s.dataset.p!==p);});
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
   window.scrollTo(0,0);
+  if(p==="crypto")cxStart(); else cxStop();
   if(p==="asset"||p==="cash")renderChart(); else if(p==="summary")renderDetail();   // 隠れていた間は幅が取れないので開いた時に描き直す
 }
-{let _rz=null; window.addEventListener("resize",()=>{clearTimeout(_rz);_rz=setTimeout(()=>{try{renderChart();renderDetail();}catch(e){}},150);});}
+{let _rz=null; window.addEventListener("resize",()=>{clearTimeout(_rz);_rz=setTimeout(()=>{try{renderChart();renderDetail();renderCxChart();}catch(e){}},150);});}
 document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest(".tab");if(b)showTab(b.dataset.p);});
 
 /* ===== CSV読み込み（マネフォ：資産推移→実録／家計簿→年間貯蓄。ブラウザ内で処理・送信なし） ===== */
